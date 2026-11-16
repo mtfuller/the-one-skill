@@ -46,8 +46,22 @@ class IgnoredSkillLockError(PermissionError):
     """Raised when attempting to mount or modify a skill marked with ignore."""
 
 
-def mount_integration_block(skill_md_path: Path, integration_block_path: Path | None = None) -> str:
-    """Mount templates/integration-block.md onto a skill unless locked with ignore."""
+def extract_canonical_integration_block() -> str:
+    """Extract the canonical integration block embedded in references/configure.md."""
+    guide_path = REPO_ROOT / "references" / "configure.md"
+    text = guide_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    match = re.search(
+        r"(<!-- the-one-skill:opt-in -->\n<!-- the-one-skill:start -->.*?<!-- the-one-skill:end -->)",
+        text,
+        flags=re.DOTALL,
+    )
+    if not match:
+        raise ValueError(f"Could not find canonical integration block in {guide_path}")
+    return match.group(1).strip()
+
+
+def mount_integration_block(skill_md_path: Path, integration_block_text: str | None = None) -> str:
+    """Mount the canonical integration block onto a skill unless locked with ignore."""
     content = skill_md_path.read_text(encoding="utf-8").replace("\r\n", "\n")
     if IGNORE_MARKER in content:
         raise IgnoredSkillLockError(
@@ -57,8 +71,7 @@ def mount_integration_block(skill_md_path: Path, integration_block_path: Path | 
     if OPT_IN_MARKER in content and BLOCK_START in content and BLOCK_END in content:
         return content
 
-    tpl_path = integration_block_path or (REPO_ROOT / "templates" / "integration-block.md")
-    block = tpl_path.read_text(encoding="utf-8").replace("\r\n", "\n").strip()
+    block = (integration_block_text or extract_canonical_integration_block()).strip()
 
     stripped_body = content.rstrip("\n")
     mounted = f"{stripped_body}\n\n{block}\n"
@@ -152,10 +165,7 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
     def test_trusted_sources_url_verification(self) -> None:
-        sources_path = REPO_ROOT / "config" / "trusted-sources.json"
-        self.assertTrue(sources_path.is_file(), "config/trusted-sources.json must exist")
-        data = json.loads(sources_path.read_text(encoding="utf-8"))
-        self.assertGreaterEqual(len(data.get("trusted_sources", [])), 3)
+        self.assertGreaterEqual(len(lint_skills.TRUSTED_SOURCES), 3)
 
         # Official Anthropic, OpenAI, and Google Gemini URLs must pass
         for valid_url in [
@@ -266,6 +276,16 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         )
         dirty_report = export_diff.generate_diff_export(upstream, local)
         self.assertGreaterEqual(len(dirty_report.sanitization_warnings), 2)
+
+    def test_embedded_discover_template_passes_lint(self) -> None:
+        guide_path = REPO_ROOT / "references" / "discover.md"
+        text = guide_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        match = re.search(r"```markdown\n(---\nname: sample-skill-name.*?)```", text, flags=re.DOTALL)
+        self.assertIsNotNone(match, "discover.md must contain the canonical SKILL.md template block")
+        tpl_file = self.tmp_dir / "SKILL.md"
+        tpl_file.write_text(match.group(1), encoding="utf-8")
+        res = lint_skills.lint_skill_file(tpl_file)
+        self.assertTrue(res.passed, f"Embedded template failed lint: {res.errors + res.security_findings}")
 
     def test_repository_skills_and_fixtures_lint(self) -> None:
         exit_code = lint_skills.verify_repository()
