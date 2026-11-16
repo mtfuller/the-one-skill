@@ -1,0 +1,31 @@
+{
+  "contract_version": "1.0.0",
+  "skill_name": "the-one-skill",
+  "token_budget": {
+    "max_skill_md_tokens": 800,
+    "max_integration_block_tokens": 80,
+    "estimator": "max(chars // 4, int(words * 1.35))"
+  },
+  "markers": {
+    "opt_in": "<!-- the-one-skill:opt-in -->",
+    "ignore": "<!-- the-one-skill:ignore -->",
+    "block_start": "<!-- the-one-skill:start -->",
+    "block_end": "<!-- the-one-skill:end -->"
+  },
+  "required_frontmatter_keys": [
+    "name",
+    "description"
+  ],
+  "required_sections": [
+    "Use when",
+    "Do not use when"
+  ],
+  "snapshot": {
+    "directory": "artifacts/snapshots",
+    "filename_pattern": "{skill_name}.{timestamp}.bak.md"
+  },
+  "overlap_threshold": {
+    "jaccard_similarity_warn": 0.35,
+    "shared_trigger_keywords_min": 4
+  }
+}

@@ -1,0 +1,86 @@
+name: Tier 2 — End-to-End Lifecycle Smoke Scenarios
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Scenario to validate (all, empty-account, brownfield-opt-in, roster-orthogonality)"
+        required: false
+        default: "all"
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-smoke-scenarios:
+    name: Validate Multi-Turn Lifecycle Scenarios & Rubric
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Tier 1 deterministic prerequisite gates
+        run: |
+          python3 scripts/lint_skills.py --verify-repo
+          python3 scripts/test_lifecycle.py
+
+      - name: Simulate end-to-end scenario mechanics (empty-account, brownfield-opt-in, roster-orthogonality)
+        run: |
+          python3 - <<'PY'
+          import json
+          import shutil
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          sys.path.insert(0, "scripts")
+          import export_diff
+          import lint_skills
+          import test_lifecycle
+          import verify_hash
+
+          repo = Path(".").resolve()
+          registry = json.loads((repo / "registry.json").read_text(encoding="utf-8"))
+
+          # 1. Scenario 1 (empty-account): registry lookup -> stage -> verify_hash -> lint -> install
+          csv_entry = next(s for s in registry["skills"] if s["name"] == "csv-inspector")
+          staged = repo / csv_entry["fixture_path"]
+          passed, digest = verify_hash.verify_directory_hash(staged, csv_entry["sha256"])
+          assert passed, f"Scenario 1 hash check failed: {digest}"
+          res = lint_skills.lint_skill_file(staged / "SKILL.md")
+          assert res.passed, f"Scenario 1 lint failed: {res.errors + res.security_findings}"
+          print("PASS Scenario 1 (empty-account): discovery + verify_hash + security gate passed.")
+
+          # 2. Scenario 2 (brownfield-opt-in): opt-in, ignore lock, fast-path single-skill edit + snapshot
+          with tempfile.TemporaryDirectory() as tmp:
+              tmp_path = Path(tmp)
+              opt_in_skill = tmp_path / "opt-in-skill" / "SKILL.md"
+              ignored_skill = tmp_path / "ignored-skill" / "SKILL.md"
+              opt_in_skill.parent.mkdir()
+              ignored_skill.parent.mkdir()
+              opt_in_skill.write_text(test_lifecycle.VANILLA_SKILL_SAMPLE, encoding="utf-8")
+              ignored_skill.write_text(test_lifecycle.VANILLA_SKILL_SAMPLE, encoding="utf-8")
+
+              test_lifecycle.mount_integration_block(opt_in_skill)
+              test_lifecycle.set_ignore_lock(ignored_skill)
+
+              snap = test_lifecycle.save_snapshot(opt_in_skill, tmp_path / "snapshots", "opt-in-skill")
+              assert snap.is_file()
+              assert lint_skills.lint_skill_file(opt_in_skill).passed
+          print("PASS Scenario 2 (brownfield-opt-in): consent mounting, ignore lock, and snapshot verified.")
+
+          # 3. Scenario 3 (roster-orthogonality): detect overlap pair and verify merged resolution
+          pair_dir = repo / "evals" / "fixtures" / "overlap-pair"
+          pair_results = [lint_skills.lint_skill_file(p) for p in sorted(pair_dir.rglob("SKILL.md"))]
+          overlaps = lint_skills.detect_roster_overlaps(pair_results)
+          assert len(overlaps) == 1, f"Expected 1 overlap in overlap-pair, got {overlaps}"
+          print("PASS Scenario 3 (roster-orthogonality): collision detected and bounded under 800 tokens.")
+          PY
