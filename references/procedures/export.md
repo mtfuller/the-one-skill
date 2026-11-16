@@ -1,6 +1,6 @@
-# Local State Export & PR Diff Workflow (`export`)
+# Procedure: Local State Export & PR Diff Workflow (`export`)
 
-Use this workflow when the user wants to export local improvements made to `the-one-skill` (or a registry skill) and generate a clean, sanitized unified diff and pull request summary for `mtfuller/the-one-skill`.
+Use this workflow when the user wants to export local improvements made to `the-one-skill` and generate a clean, sanitized unified diff and pull request summary for `mtfuller/the-one-skill`.
 
 ## Step-by-Step Workflow
 

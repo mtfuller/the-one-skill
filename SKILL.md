@@ -1,45 +1,45 @@
 ---
 name: the-one-skill
-description: Personal-first skill manager and control plane to discover, evolve, audit, and tailor Agent Skills across Gemini Web, Claude Code, and OpenAI Codex.
+description: Personal-first skill manager for Gemini Web, Claude Code, and OpenAI Codex. Use when onboarding or auditing skills, fixing friction or retries in an opted-in skill, resolving overlap when multiple skills trigger together, discovering or creating a missing skill, reverting edits, or exporting diffs for PRs. Do not use when executing a normal domain task covered cleanly by one skill with zero friction, or to modify any skill marked with the-one-skill:ignore.
 ---
 
 # `the-one-skill` — Control Plane
 
 > **One skill to discover, evolve, and tailor them all.**
 
-Manage your skill library safely using standard Agent Skills files (`SKILL.md`, `references/`, `scripts/`, `artifacts/`). Load only the reference file needed for the active intent.
+Manage your skill library using standard Agent Skills files (`SKILL.md`, `references/`, `scripts/`, `artifacts/`). Load only the reference file needed for the active intent.
 
 ## Use when
 
-- Onboarding or auditing an existing skill library (`init`, opt-in or ignore consent).
-- Friction, user corrections, or retry loops occur in an opted-in skill (**Fast-Path Single-Skill Audit**).
-- Multiple skills trigger on one prompt, a workflow spans 3+ skills, or the user mentions overlap or bloat (**Full-Roster Orthogonality Audit**).
-- A task has no matching skill or repeats across sessions (`discover`).
-- Rolling back a skill edit, stripping integration blocks, or exporting local diffs for PRs (`revert`, `uninstall`, `export`).
+- Onboarding or auditing a skill library (`init`, opt-in or ignore consent).
+- Friction, corrections, or retries occur in an opted-in skill (**Fast-Path Single-Skill Audit**).
+- Multiple skills trigger together, a workflow spans 3+ skills, or overlap/bloat is reported (**Full-Roster Orthogonality Audit**).
+- A task has no matching skill or repeats across sessions (`discover` or create).
+- Reverting a skill edit, stripping integration blocks, or exporting diffs (`revert`, `uninstall`, `export`).
 
 ## Do not use when
 
 - Executing a normal domain task covered cleanly by a single skill with zero friction.
-- Modifying any skill locked with `the-one-skill:ignore` (unless asked to change its consent state).
+- Modifying any skill locked with `the-one-skill:ignore` (unless asked to change its consent).
 
 ## Intent Routing (Load Reference on Demand)
 
-Infer intent naturally from conversation (or optional `/init`, `/discover`, `/reflect`, `/revert`, `/uninstall`, `/export` shortcuts):
+Infer intent naturally from context (or optional `/init`, `/discover`, `/reflect`, `/revert`, `/uninstall`, `/export` shortcuts):
 
 1. **Friction in 1 Opted-In Skill → Fast-Path Single-Skill Audit**
-   - Read `references/reflect.md` (§1). Inspect **only that active skill**; propose a surgical diff or move detail to `references/`. Never scan other skills.
+   - Read `references/procedures/reflect.md` (§1) and `references/skill-modification/modification-guide.md`. Inspect **only that active skill** and propose a surgical diff.
 2. **Trigger Collisions, 3+ Skill Chains, or Roster Review → Full-Roster Orthogonality Audit**
-   - Read `references/reflect.md` (§2). Audit all opted-in skills for the smallest necessary non-overlapping set; split monoliths and merge or sharpen `"Do not use when"` boundaries.
-3. **Unmatched Repeatable Task → Verified Discovery**
-   - Read `references/discover.md`. Check `registry.json` first, stage files, require `python3 scripts/verify_hash.py <staged_dir> <expected_sha256>` (`PASS`), scan `config/security-policy.json`, or draft from `templates/skill-template.md`.
+   - Read `references/procedures/reflect.md` (§2) and `references/skill-modification/modification-guide.md`. Audit all opted-in skills for the smallest non-overlapping set.
+3. **Unmatched Repeatable Task → Trusted Discovery or Skill Creation**
+   - Read `references/procedures/discover.md` (`config/trusted-sources.json` + `scripts/lint_skills.py`) or `references/skill-creation/authoring-guide.md`.
 4. **Onboarding & Consent → Init**
-   - Read `references/init.md`. Run `python3 scripts/lint_skills.py`, prompt per skill (**Opt-In**, **Ignore**, **Ask Later**), and mount `templates/integration-block.md` on opted-in skills.
+   - Read `references/procedures/init.md` (`scripts/lint_skills.py`, Opt-In / Ignore / Ask Later).
 5. **Rollback or Removal → Revert / Uninstall**
-   - Read `references/revert.md`. Save snapshots to `artifacts/snapshots/`, restore backups, or strip integration blocks to vanilla.
+   - Read `references/procedures/revert.md` (`artifacts/snapshots/`, block stripping).
 6. **Contribute Upstream → Export PR Diff**
-   - Read `references/export.md` and run `python3 scripts/export_diff.py`.
+   - Read `references/procedures/export.md` (`scripts/export_diff.py`).
 
 ## Host Guides & Invariants
 
 - **Hosts:** Read `vendors/gemini-web.md`, `vendors/claude-code.md`, or `vendors/codex.md`.
-- **Invariants:** Require `the-one-skill:opt-in` consent, pre-patch snapshots, diff approval, `verify_hash.py` `PASS`, and `SKILL.md <= 800` tokens.
+- **Invariants:** Follow `references/skill-modification/modification-guide.md` (`the-one-skill:opt-in`, snapshots, diff approval, `SKILL.md <= 800` tokens).

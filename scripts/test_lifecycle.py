@@ -2,16 +2,16 @@
 """Deterministic unit & round-trip lifecycle test suite for the-one-skill.
 
 Pure Python 3 standard library (unittest). Tests:
-  1. verify_hash.py: deterministic pass, tamper rejection, CRLF normalization,
-     and ignored OS noise (.DS_Store, __pycache__).
-  2. Delimiter block mounting, idempotency, and clean unmounting round-trip
+  1. Trusted upstream source verification (config/trusted-sources.json):
+     official Anthropic, OpenAI, and Google Gemini skill URLs pass; untrusted URLs fail.
+  2. Explicit frontmatter 'Use when' / 'Do not use when' description enforcement.
+  3. Delimiter block mounting, idempotency, and clean unmounting round-trip
      (mount -> strip restores original content byte-for-byte).
-  3. Consent lock enforcement (the-one-skill:ignore prevents mounting or edits).
-  4. Snapshot & revert round-trip restoration.
-  5. export_diff.py: unified diff generation, file summary, and PII leak detection.
-  6. lint_skills.py: 800-token ceiling, frontmatter, trigger overlap detection,
+  4. Consent lock enforcement (the-one-skill:ignore prevents mounting or edits).
+  5. Snapshot & revert round-trip restoration.
+  6. export_diff.py: unified diff generation, file summary, and PII leak detection.
+  7. lint_skills.py: 800-token ceiling, frontmatter, trigger overlap detection,
      and security-policy.json trap blocking.
-  7. registry.json integrity: verifies every entry's SHA-256 and pinned commit format.
 
 Usage:
     python3 scripts/test_lifecycle.py
@@ -35,7 +35,6 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import export_diff  # noqa: E402
 import lint_skills  # noqa: E402
-import verify_hash  # noqa: E402
 
 OPT_IN_MARKER = "<!-- the-one-skill:opt-in -->"
 IGNORE_MARKER = "<!-- the-one-skill:ignore -->"
@@ -55,7 +54,6 @@ def mount_integration_block(skill_md_path: Path, integration_block_path: Path | 
             f"Refusing to modify {skill_md_path}: locked with {IGNORE_MARKER}"
         )
 
-    # Idempotent if already mounted
     if OPT_IN_MARKER in content and BLOCK_START in content and BLOCK_END in content:
         return content
 
@@ -79,7 +77,6 @@ def strip_integration_block(skill_md_path: Path) -> str:
     """Strip the-one-skill markers and delimited block, restoring vanilla SKILL.md."""
     content = skill_md_path.read_text(encoding="utf-8").replace("\r\n", "\n")
 
-    # Remove opt-in / ignore markers and the start..end block
     content = re.sub(
         r"\n*<!-- the-one-skill:opt-in -->\s*<!-- the-one-skill:start -->.*?<!-- the-one-skill:end -->\s*",
         "\n",
@@ -125,12 +122,12 @@ def revert_from_snapshot(skill_md_path: Path, snapshot_path: Path) -> str:
 
 VANILLA_SKILL_SAMPLE = """---
 name: sample-formatter
-description: Format markdown tables and align columns deterministically.
+description: Format markdown tables and align columns deterministically. Use when aligning markdown tables in documentation files. Do not use when editing CSV files or JSON schemas.
 ---
 
 # Sample Formatter
 
- Align markdown table columns cleanly without modifying prose.
+Align markdown table columns cleanly without modifying prose.
 
 ## Use when
 
@@ -154,36 +151,41 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
 
-    def test_verify_hash_pass_and_tamper_rejection(self) -> None:
-        skill_dir = self.tmp_dir / "candidate-skill"
-        skill_dir.mkdir()
-        skill_file = skill_dir / "SKILL.md"
-        skill_file.write_text(VANILLA_SKILL_SAMPLE, encoding="utf-8")
+    def test_trusted_sources_url_verification(self) -> None:
+        sources_path = REPO_ROOT / "config" / "trusted-sources.json"
+        self.assertTrue(sources_path.is_file(), "config/trusted-sources.json must exist")
+        data = json.loads(sources_path.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(data.get("trusted_sources", [])), 3)
 
-        digest = verify_hash.compute_canonical_hash(skill_dir)
-        self.assertEqual(len(digest), 64)
+        # Official Anthropic, OpenAI, and Google Gemini URLs must pass
+        for valid_url in [
+            "https://github.com/anthropics/skills/tree/main/skills/pdf",
+            "https://raw.githubusercontent.com/anthropics/skills/main/skills/xlsx/SKILL.md",
+            "https://github.com/openai/skills/tree/main/skills",
+            "https://github.com/google-gemini/gemini-skills/tree/main/skills",
+        ]:
+            passed, msg = lint_skills.verify_trusted_source_url(valid_url)
+            self.assertTrue(passed, f"Expected trusted URL to pass: {valid_url} ({msg})")
 
-        passed, actual = verify_hash.verify_directory_hash(skill_dir, digest)
-        self.assertTrue(passed)
-        self.assertEqual(actual, digest)
+        # Untrusted third-party URLs must fail
+        for untrusted_url in [
+            "https://github.com/random-user/unverified-skills/blob/main/SKILL.md",
+            "https://evil.example.com/skills/SKILL.md",
+        ]:
+            passed, msg = lint_skills.verify_trusted_source_url(untrusted_url)
+            self.assertFalse(passed, f"Expected untrusted URL to fail: {untrusted_url} ({msg})")
 
-        # OS noise files (.DS_Store, __pycache__) must not change the canonical hash
-        (skill_dir / ".DS_Store").write_bytes(b"\x00\x01\x02")
-        pycache = skill_dir / "__pycache__"
-        pycache.mkdir()
-        (pycache / "helper.cpython-311.pyc").write_bytes(b"\xde\xad\xbe\xef")
-        self.assertEqual(verify_hash.compute_canonical_hash(skill_dir), digest)
-
-        # CRLF vs LF line endings must produce the exact same canonical hash
-        crlf_text = VANILLA_SKILL_SAMPLE.replace("\n", "\r\n")
-        skill_file.write_bytes(crlf_text.encode("utf-8"))
-        self.assertEqual(verify_hash.compute_canonical_hash(skill_dir), digest)
-
-        # Tampering with a single character must fail verification
-        skill_file.write_text(VANILLA_SKILL_SAMPLE + "\n<!-- tampered -->\n", encoding="utf-8")
-        passed_after_tamper, tampered_hash = verify_hash.verify_directory_hash(skill_dir, digest)
-        self.assertFalse(passed_after_tamper)
-        self.assertNotEqual(tampered_hash, digest)
+    def test_frontmatter_requires_explicit_use_when_and_do_not_use_when(self) -> None:
+        skill_file = self.tmp_dir / "SKILL.md"
+        vague_frontmatter = VANILLA_SKILL_SAMPLE.replace(
+            "description: Format markdown tables and align columns deterministically. Use when aligning markdown tables in documentation files. Do not use when editing CSV files or JSON schemas.",
+            "description: Format markdown tables and align columns deterministically.",
+        )
+        skill_file.write_text(vague_frontmatter, encoding="utf-8")
+        res = lint_skills.lint_skill_file(skill_file)
+        self.assertFalse(res.passed)
+        self.assertTrue(any("Use when" in e for e in res.errors))
+        self.assertTrue(any("Do not use when" in e for e in res.errors))
 
     def test_mount_and_strip_round_trip_restores_exact_bytes(self) -> None:
         skill_file = self.tmp_dir / "SKILL.md"
@@ -194,11 +196,9 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         self.assertIn(BLOCK_START, mounted)
         self.assertIn(BLOCK_END, mounted)
 
-        # Mounting a second time is idempotent
         mounted_again = mount_integration_block(skill_file)
         self.assertEqual(mounted, mounted_again)
 
-        # Stripping restores exact original content byte-for-byte
         restored = strip_integration_block(skill_file)
         self.assertEqual(restored, VANILLA_SKILL_SAMPLE)
 
@@ -222,7 +222,6 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         snap_path = save_snapshot(skill_file, snap_dir, "sample-formatter")
         self.assertTrue(snap_path.is_file())
 
-        # Mutate the skill via mount + edit
         mount_integration_block(skill_file)
         skill_file.write_text(
             skill_file.read_text(encoding="utf-8") + "\n<!-- extra edit -->\n",
@@ -230,7 +229,6 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         )
         self.assertNotEqual(skill_file.read_text(encoding="utf-8"), VANILLA_SKILL_SAMPLE)
 
-        # Revert restores exact snapshot
         reverted = revert_from_snapshot(skill_file, snap_path)
         self.assertEqual(reverted, VANILLA_SKILL_SAMPLE)
 
@@ -262,7 +260,6 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         self.assertEqual(report.sanitization_warnings, [])
         self.assertIn("diff --git a/SKILL.md b/SKILL.md", report.patch_text)
 
-        # Now inject a personal email and local /Users/ path and verify sanitization catches both
         (local / "references" / "edge-cases.md").write_text(
             "Contact developer@private-domain.org or see /Users/alice/secret.txt\n",
             encoding="utf-8",
@@ -273,39 +270,6 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
     def test_repository_skills_and_fixtures_lint(self) -> None:
         exit_code = lint_skills.verify_repository()
         self.assertEqual(exit_code, 0)
-
-    def test_registry_json_integrity_and_fixture_hashes(self) -> None:
-        registry_path = REPO_ROOT / "registry.json"
-        self.assertTrue(registry_path.is_file(), "registry.json must exist")
-        data = json.loads(registry_path.read_text(encoding="utf-8"))
-
-        self.assertIn("skills", data)
-        skills = data["skills"]
-        self.assertGreaterEqual(len(skills), 3)
-
-        commit_re = re.compile(r"^[0-9a-f]{40}$|^v\d+\.\d+\.\d+$")
-        for entry in skills:
-            name = entry["name"]
-            commit_sha = entry["commit_sha"]
-            expected_hash = entry["sha256"]
-
-            self.assertRegex(
-                commit_sha,
-                commit_re,
-                f"Registry skill {name} must be pinned to a 40-char commit SHA or vX.Y.Z tag",
-            )
-            self.assertRegex(expected_hash, verify_hash.SHA256_RE)
-
-            fixture_dir = REPO_ROOT / entry["fixture_path"]
-            self.assertTrue(
-                fixture_dir.is_dir(),
-                f"Fixture path {fixture_dir} for registry skill {name} must exist",
-            )
-            passed, actual = verify_hash.verify_directory_hash(fixture_dir, expected_hash)
-            self.assertTrue(
-                passed,
-                f"Registry hash mismatch for {name}: expected {expected_hash}, got {actual}",
-            )
 
 
 def main() -> int:

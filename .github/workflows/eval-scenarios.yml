@@ -35,29 +35,25 @@ jobs:
       - name: Simulate end-to-end scenario mechanics (empty-account, brownfield-opt-in, roster-orthogonality)
         run: |
           python3 - <<'PY'
-          import json
-          import shutil
           import sys
           import tempfile
           from pathlib import Path
 
           sys.path.insert(0, "scripts")
-          import export_diff
           import lint_skills
           import test_lifecycle
-          import verify_hash
 
           repo = Path(".").resolve()
-          registry = json.loads((repo / "registry.json").read_text(encoding="utf-8"))
 
-          # 1. Scenario 1 (empty-account): registry lookup -> stage -> verify_hash -> lint -> install
-          csv_entry = next(s for s in registry["skills"] if s["name"] == "csv-inspector")
-          staged = repo / csv_entry["fixture_path"]
-          passed, digest = verify_hash.verify_directory_hash(staged, csv_entry["sha256"])
-          assert passed, f"Scenario 1 hash check failed: {digest}"
+          # 1. Scenario 1 (empty-account): trusted source URL check -> stage -> lint & security gate -> install
+          passed_url, msg = lint_skills.verify_trusted_source_url(
+              "https://github.com/anthropics/skills/tree/main/skills/xlsx"
+          )
+          assert passed_url, f"Scenario 1 trusted source check failed: {msg}"
+          staged = repo / "evals" / "fixtures" / "verified-skills" / "csv-inspector"
           res = lint_skills.lint_skill_file(staged / "SKILL.md")
           assert res.passed, f"Scenario 1 lint failed: {res.errors + res.security_findings}"
-          print("PASS Scenario 1 (empty-account): discovery + verify_hash + security gate passed.")
+          print("PASS Scenario 1 (empty-account): trusted source + security/lint gate passed.")
 
           # 2. Scenario 2 (brownfield-opt-in): opt-in, ignore lock, fast-path single-skill edit + snapshot
           with tempfile.TemporaryDirectory() as tmp:
@@ -77,7 +73,7 @@ jobs:
               assert lint_skills.lint_skill_file(opt_in_skill).passed
           print("PASS Scenario 2 (brownfield-opt-in): consent mounting, ignore lock, and snapshot verified.")
 
-          # 3. Scenario 3 (roster-orthogonality): detect overlap pair and verify merged resolution
+          # 3. Scenario 3 (roster-orthogonality): detect overlap pair and verify bounded resolution
           pair_dir = repo / "evals" / "fixtures" / "overlap-pair"
           pair_results = [lint_skills.lint_skill_file(p) for p in sorted(pair_dir.rglob("SKILL.md"))]
           overlaps = lint_skills.detect_roster_overlaps(pair_results)

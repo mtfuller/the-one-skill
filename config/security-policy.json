@@ -1,23 +1,17 @@
 {
-  "policy_version": "1.0.0",
+  "policy_version": "1.1.0",
   "allowed_script_languages": [
     "python3-stdlib"
   ],
-  "require_sha256_verification": true,
-  "require_pinned_commit_or_tag": true,
-  "disallowed_refs": [
-    "refs/heads/main",
-    "refs/heads/master",
-    "HEAD",
-    "latest"
-  ],
+  "require_trusted_source": true,
+  "trusted_sources_config": "config/trusted-sources.json",
   "banned_patterns": [
     {
       "id": "SEC-001",
       "category": "prompt_injection_override",
       "severity": "critical",
       "description": "Attempts to override system instructions, safety gates, or explicit consent markers.",
-      "regex": "(?i)(ignore\\s+(all\\s+)?(previous|prior|system)\\s+instructions|disregard\\s+safety|bypass\\s+verify_hash|skip\\s+diff\\s+approval)"
+      "regex": "(?i)(ignore\\s+(all\\s+)?(previous|prior|system)\\s+instructions|disregard\\s+safety|bypass\\s+security\\s+policy|skip\\s+diff\\s+approval)"
     },
     {
       "id": "SEC-002",

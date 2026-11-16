@@ -1,6 +1,6 @@
 ---
 name: csv-inspector
-description: Inspect CSV headers, delimiter consistency, null rates, and column data types using pure Python stdlib.
+description: Inspect CSV headers, delimiter consistency, null rates, and column data types using pure Python stdlib. Use when profiling .csv or .tsv tabular datasets or diagnosing malformed rows. Do not use when validating JSON schemas (use json-schema-auditor) or checking Markdown citations (use markdown-citation-checker).
 ---
 
 # CSV Inspector
@@ -26,6 +26,6 @@ Deterministic profiling of tabular `.csv` and `.tsv` datasets without third-part
 <!-- the-one-skill:opt-in -->
 <!-- the-one-skill:start -->
 ### Continuous Evolution (`the-one-skill`)
-- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/reflect.md` (Fast-Path) to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
-- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, invoke the Full-Roster Orthogonality Audit in `the-one-skill/references/reflect.md`.
+- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/procedures/reflect.md` (§1) and `the-one-skill/references/skill-modification/modification-guide.md` to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
+- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, run the Full-Roster Orthogonality Audit in `the-one-skill/references/procedures/reflect.md` (§2).
 <!-- the-one-skill:end -->

@@ -1,10 +1,10 @@
-# Safety, Rollback & Clean Uninstall (`snapshot`, `revert`, `uninstall`)
+# Procedure: Safety, Rollback & Clean Uninstall (`snapshot`, `revert`, `uninstall`)
 
 `the-one-skill` guarantees clean reversibility for every managed skill. All edits are preceded by snapshots, and all integration markers live inside deterministic HTML comment delimiters.
 
 ## 1. Saving a Snapshot (`snapshot`)
 
-Before modifying any opted-in skill (during `init`, `reflect`, or manual tailoring):
+Before modifying any opted-in skill (see `references/skill-modification/modification-guide.md`):
 1. Ensure `artifacts/snapshots/` exists.
 2. Copy the skill's current `SKILL.md` to:
    ```text

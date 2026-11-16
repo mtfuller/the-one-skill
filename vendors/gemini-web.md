@@ -9,15 +9,15 @@ This guide defines how `the-one-skill` operates inside **Gemini Web**.
 
 ## 2. Sandbox Constraints (Python Stdlib Only, No Outbound VM Network)
 
-- **Pure Python 3 Standard Library:** The Gemini Web code execution environment only runs Python and has no outbound internet access from inside the VM. Never invoke `pip install`, shell network tools (`curl`, `wget`), or non-Python runtimes. All scripts in `scripts/` use pure Python 3 stdlib (`hashlib`, `difflib`, `json`, `re`, `pathlib`, `unittest`).
-- **Two-Step Web Fetch + Sandbox Verification (`discover` & `export`):**
-  1. Use Gemini Web's built-in **Web Browsing** tool to read `registry.json` and the candidate skill's commit-pinned raw files (`https://raw.githubusercontent.com/<owner>/<repo>/<commit_sha>/<path>`).
-  2. Write those fetched file contents into a staging directory inside the Python sandbox (`/tmp/staged/<skill-name>/`) and run:
+- **Pure Python 3 Standard Library:** The Gemini Web code execution environment only runs Python and has no outbound internet access from inside the VM. Never invoke `pip install`, shell network tools (`curl`, `wget`), or non-Python runtimes. All scripts in `scripts/` use pure Python 3 stdlib (`difflib`, `json`, `re`, `pathlib`, `unittest`).
+- **Two-Step Trusted Web Fetch + Sandbox Security Gate (`discover` & `export`):**
+  1. Use Gemini Web's built-in **Web Browsing** tool to browse the trusted upstream repositories listed in `config/trusted-sources.json` (`anthropics/skills`, `openai/skills`, `google-gemini/gemini-skills`).
+  2. Write the fetched candidate files into a staging directory inside the Python sandbox (`/tmp/staged/<skill-name>/`) and run:
      ```bash
-     python3 scripts/verify_hash.py /tmp/staged/<skill-name> <expected_sha256>
+     python3 scripts/lint_skills.py --check-source-url <candidate_url>
      python3 scripts/lint_skills.py /tmp/staged/<skill-name> --security-policy config/security-policy.json
      ```
-  3. Only after `verify_hash.py` prints `PASS` and user approval is granted should you save/install the skill in Gemini Web.
+  3. Only after `lint_skills.py` passes and user approval is granted should you save/install the skill in Gemini Web.
 
 ## 3. Snapshots & Artifacts
 

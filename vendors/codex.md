@@ -13,5 +13,5 @@ When onboarding (`init`), scan the workspace skill directory and check `AGENTS.m
 
 ## 2. Sandbox & Verification Execution
 
-- **Deterministic Verification:** Run `python3 scripts/verify_hash.py`, `python3 scripts/lint_skills.py`, and `python3 scripts/export_diff.py` directly in the Codex terminal environment.
-- **Network-Restricted Sandboxes:** When running in a Codex environment with outbound network disabled after setup, rely on local git clones or cached registry snapshots for `discover` and `export`, and always enforce the `verify_hash.py` `PASS` gate before installing any staged skill.
+- **Deterministic Verification:** Run `python3 scripts/lint_skills.py` and `python3 scripts/export_diff.py` directly in the Codex terminal environment.
+- **Trusted Skill Sources:** When discovering skills (`references/procedures/discover.md`), verify candidate URLs against `config/trusted-sources.json` (`python3 scripts/lint_skills.py --check-source-url <url>`) and run the `config/security-policy.json` gate before installing any staged skill.

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Deterministic token cap, frontmatter, trigger-overlap, and security linter.
+"""Deterministic token cap, frontmatter, trigger-overlap, trusted-source, and security linter.
 
 Pure Python 3 standard library. Enforces:
   1. 800-token ceiling on SKILL.md using a deterministic stdlib estimator
-  2. Valid YAML frontmatter ('name' and 'description')
-  3. Explicit 'Use when' and 'Do not use when' boundary sections
+  2. Valid YAML frontmatter ('name' and 'description' containing explicit
+     'Use when' and 'Do not use when' routing guidance)
+  3. Explicit '## Use when' and '## Do not use when' body sections
   4. Consent marker consistency ('opt-in' vs 'ignore')
   5. Trigger keyword overlap detection across skill rosters
   6. Security policy pattern scanning against config/security-policy.json
+  7. Trusted upstream source URL validation against config/trusted-sources.json
 
 Usage:
     python3 scripts/lint_skills.py [target_path ...] [--security-policy path]
+    python3 scripts/lint_skills.py --check-source-url <candidate_url>
     python3 scripts/lint_skills.py --verify-repo
 """
 
@@ -27,9 +30,9 @@ from typing import Sequence
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONTRACT_PATH = REPO_ROOT / "config" / "contract.json"
 DEFAULT_SECURITY_POLICY_PATH = REPO_ROOT / "config" / "security-policy.json"
+DEFAULT_TRUSTED_SOURCES_PATH = REPO_ROOT / "config" / "trusted-sources.json"
 
 MAX_SKILL_TOKENS = 800
-TOKEN_SPLIT_RE = re.compile(r"[A-Za-z0-9_]+|[^\w\s]+", re.UNICODE)
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 OPT_IN_LINE_RE = re.compile(r"^\s*<!--\s*the-one-skill:opt-in\s*-->\s*$", re.MULTILINE)
 IGNORE_LINE_RE = re.compile(r"^\s*<!--\s*the-one-skill:ignore\s*-->\s*$", re.MULTILINE)
@@ -48,6 +51,8 @@ STOPWORDS = {
     "asks", "ask", "perform", "specific", "input", "involves", "needed",
     "request", "general", "question", "outside", "handled", "audit", "validate",
     "check", "inspect", "missing", "file", "files", "keys", "definitions",
+    "validating", "checking", "profiling", "auditing", "inspecting", " Pure",
+    "pure", "python", "stdlib",
 }
 
 
@@ -114,8 +119,11 @@ def extract_section(content: str, heading_name: str) -> str:
 
 
 def extract_trigger_keywords(description: str, use_when_section: str) -> set[str]:
-    """Extract normalized trigger keywords from description and 'Use when' bullets."""
-    combined = f"{description}\n{use_when_section}".lower()
+    """Extract normalized positive trigger keywords from description and 'Use when' bullets."""
+    # Strip any "Do not use when..." clause from the description so negative exclusions
+    # naming other skills do not count as positive trigger collisions!
+    positive_desc = re.split(r"(?i)\bdo\s+not\s+use\s+when\b", description)[0]
+    combined = f"{positive_desc}\n{use_when_section}".lower()
     combined = re.sub(r"<!--.*?-->", " ", combined, flags=re.DOTALL)
     words = re.findall(r"[a-z0-9][a-z0-9_-]{2,}", combined)
     return {w.strip("_-") for w in words if w.strip("_-") not in STOPWORDS and len(w) >= 3}
@@ -138,6 +146,31 @@ def load_security_policy(policy_path: Path | None = None) -> dict:
     if not target.exists():
         return {"banned_patterns": []}
     return json.loads(target.read_text(encoding="utf-8"))
+
+
+def load_trusted_sources(sources_path: Path | None = None) -> dict:
+    target = sources_path or DEFAULT_TRUSTED_SOURCES_PATH
+    if not target.exists():
+        return {"trusted_sources": []}
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def verify_trusted_source_url(
+    url: str, sources_path: Path | None = None
+) -> tuple[bool, str]:
+    """Verify whether a candidate URL belongs to an approved source in trusted-sources.json."""
+    cleaned = url.strip()
+    data = load_trusted_sources(sources_path)
+    for src in data.get("trusted_sources", []):
+        provider = src.get("provider", src.get("id", "unknown"))
+        repo = src.get("repository", "")
+        for prefix in src.get("allowed_url_prefixes", []):
+            if cleaned.startswith(prefix) or cleaned == prefix.rstrip("/"):
+                return True, f"PASS: Trusted source ({provider} — {repo})"
+    return (
+        False,
+        f"FAIL: Untrusted skill source URL {cleaned!r} is not in config/trusted-sources.json",
+    )
 
 
 def scan_security_patterns(text: str, rel_label: str, policy: dict) -> list[str]:
@@ -180,6 +213,15 @@ def lint_skill_file(
             errors.append("Missing required frontmatter key: `name`.")
         if not description:
             errors.append("Missing required frontmatter key: `description`.")
+        else:
+            if not re.search(r"\buse\s+when\b", description, re.IGNORECASE):
+                errors.append(
+                    "Frontmatter `description` must explicitly state when to use the skill (`Use when ...`)."
+                )
+            if not re.search(r"\bdo\s+not\s+use\s+when\b", description, re.IGNORECASE):
+                errors.append(
+                    "Frontmatter `description` must explicitly state when not to use the skill (`Do not use when ...`)."
+                )
 
     if tokens > max_tokens:
         errors.append(
@@ -205,7 +247,6 @@ def lint_skill_file(
     if has_start != has_end:
         errors.append("Unbalanced `the-one-skill:start` / `the-one-skill:end` delimiter markers.")
 
-    # Scan SKILL.md and any companion files in the skill directory against security-policy.json
     security_findings: list[str] = []
     skill_dir = skill_md_path.parent
     files_to_scan = [skill_md_path]
@@ -295,7 +336,7 @@ def verify_repository(policy_path: Path | None = None) -> int:
     if verified_fixtures_dir.is_dir():
         valid_targets.extend(sorted(verified_fixtures_dir.rglob("SKILL.md")))
 
-    print("=== Checking Valid Skills & Verified Registry Fixtures ===")
+    print("=== Checking Valid Skills & Verified Sample Fixtures ===")
     valid_results: list[SkillLintResult] = []
     for path in valid_targets:
         res = lint_skill_file(path, security_policy=policy)
@@ -310,7 +351,6 @@ def verify_repository(policy_path: Path | None = None) -> int:
                 print(f"         -> {err}")
                 failures.append(f"{rel}: {err}")
 
-    # Check that verified registry skills are mutually orthogonal
     verified_only = [
         r for r in valid_results if "verified-skills" in r.skill_path.as_posix()
     ]
@@ -320,7 +360,6 @@ def verify_repository(policy_path: Path | None = None) -> int:
             print(f"  [FAIL] Verified fixture overlap: {ov}")
             failures.append(ov)
 
-    # Check trap fixtures (must be caught!)
     traps_dir = REPO_ROOT / "evals" / "fixtures" / "traps"
     if traps_dir.is_dir():
         print("\n=== Verifying Negative Trap Fixtures (Must Be Blocked) ===")
@@ -335,12 +374,11 @@ def verify_repository(policy_path: Path | None = None) -> int:
                 reasons = "; ".join(res.errors + res.security_findings)
                 print(f"  [PASS: Caught Trap] {rel} -> {reasons}")
 
-    # Check overlap pair fixture (must trigger overlap detector!)
     overlap_dir = REPO_ROOT / "evals" / "fixtures" / "overlap-pair"
     if overlap_dir.is_dir():
         print("\n=== Verifying Overlap-Pair Fixture (Must Flag Trigger Collision) ===")
         pair_files = sorted(overlap_dir.rglob("SKILL.md"))
-        pair_results = [lint_skill_file(f, security_policy=policy) for f in pair_files]
+        pair_results = [lint_skills_file_result := lint_skill_file(f, security_policy=policy) for f in pair_files]
         overlaps = detect_roster_overlaps(pair_results)
         if not overlaps:
             msg = "Overlap-pair fixture did not trigger detect_roster_overlaps()"
@@ -360,7 +398,7 @@ def verify_repository(policy_path: Path | None = None) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Deterministic token cap, frontmatter, overlap, and security linter."
+        description="Deterministic token cap, frontmatter, overlap, trusted-source, and security linter."
     )
     parser.add_argument(
         "targets",
@@ -374,11 +412,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Path to security-policy.json (defaults to config/security-policy.json).",
     )
     parser.add_argument(
+        "--check-source-url",
+        type=str,
+        default=None,
+        help="Verify whether a candidate upstream skill URL belongs to config/trusted-sources.json.",
+    )
+    parser.add_argument(
         "--verify-repo",
         action="store_true",
         help="Run full repository lint check including verified and trap fixtures.",
     )
     args = parser.parse_args(argv)
+
+    if args.check_source_url is not None:
+        passed, msg = verify_trusted_source_url(args.check_source_url)
+        print(msg)
+        return 0 if passed else 1
 
     if args.verify_repo or not args.targets:
         return verify_repository(args.security_policy)
