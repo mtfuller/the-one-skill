@@ -6,3 +6,4 @@ the-one-skill-store/
 references/agentspace/*
 !references/agentspace/index.md
 dist/
+.tos-store/

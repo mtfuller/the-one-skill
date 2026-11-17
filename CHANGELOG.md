@@ -8,6 +8,7 @@ First release.
 - Manages your roster: review, create, find and install from trusted sources, merge, split, rename, retire, and restore.
 - Undoes as narrowly as you ask: one rule, one skill, a multi-skill change, or everything back to vanilla.
 - Adapts to any host by writing its own setup notes ("agentspace") the first time it runs.
+- Keeps originals and drafts in `.tos-store/` in your project, outside `.claude/`, so Claude Code asks for fewer permissions.
 - On Claude Code, a guard blocks direct edits to your skills folder.
 - Improves itself, within a read-only policy that only you can change.
 - Updates itself from a release you download, keeping your setup notes and your local improvements.

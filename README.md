@@ -50,7 +50,7 @@ It carries no maps for particular hosts. Instead it carries a **framework for dr
 
 | Strategy | When the host offers | Original kept as | Revert |
 | :--- | :--- | :--- | :--- |
-| A. Store & swap | Filesystem access + Python | An exact copy in `the-one-skill-store/`, outside the skills folder | `skillctl.py use <skill> original` |
+| A. Store & swap | Filesystem access + Python | An exact copy in `.tos-store/` in your project (or home folder), outside the skills folder | `skillctl.py use <skill> original` |
 | B. Twin | Create + enable/disable | The original, disabled and never edited; changes go into `<name>-tuned` | Disable the twin, enable the original |
 | C. Backup first | Edit only | A backup you download before the first change | Re-upload it |
 | D. Hand-off | No write access | Unchanged; you apply the files yourself | Put the old files back |
@@ -137,6 +137,7 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | `use <skill> original\|previous\|tuned\|<version>` | Reverts, steps back one version, or switches the improvement back in |
 | `history <skill>` | The kept versions: the original plus the last 5 applied |
 | `upgrade <skill> --from <folder> [--keep <path>]` | Drafts a new release merged three ways with your local changes; `--keep references/agentspace` keeps your setup |
+| `move-store [--to <dir>]` | Moves the store, for example from the old `.claude/the-one-skill-store` to `.tos-store` |
 | `guard` | Prints the Claude Code hook that blocks direct edits to the skills folder |
 | `sets` / `undo-set <name> [--apply]` | Lists change sets; shows, then runs, the reverse steps of one (merges, vanilla, renames) |
 | `new <skill> [--from <folder>]` | Starts a skill that the-one-skill creates or installs, so it's tracked (going back to vanilla retires it) |
