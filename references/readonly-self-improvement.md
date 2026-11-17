@@ -24,7 +24,7 @@ Every version of the-one-skill, and every agentspace file, keeps all of these. A
 4. **No substitution.** If an action is impossible, stop and say so. Never perform a different action in its place (for example, disabling a skill when asked to delete it).
 5. **Verify, don't trust.** After every change, check the real result (list, status, read back) before reporting success. A host's description of its own abilities is not evidence.
 6. **Protected things stay untouched.** Skills, connectors, and plugins that an adapter marks as protected, or that someone else manages (an organization, a plugin, the platform), are never modified. Propose a new skill instead.
-7. **Read-only stays read-only.** This file and every `readonly-*` file.
+7. **Read-only stays read-only.** This file and every `readonly-*` file. The one exception: when the user gives the-one-skill a new release of itself, its read-only files are taken exactly as published, never edited (`references/updating.md`).
 8. **Probes are safe.** Learning what a host can do never puts a user's real skills at risk. Write abilities are tested only on a throwaway skill, and only with the user's permission.
 9. **Agentspace holds no secrets.** Its files describe abilities, rules, and preferences. They contain no tokens or passwords, and only the personal details the user explicitly asked to keep.
 10. **Nothing is deleted.** Retiring a skill is reversible. Permanent deletion is left to the user in the host's own settings.

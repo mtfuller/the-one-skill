@@ -64,6 +64,14 @@ On Claude Code it also sets a **guard at the gate**: a small hook that blocks di
 ### 📕 Learns your setup: *the red book of your journeys*
 `references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and trusted skill sources: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
+### 🦅 Updates itself, keeping what's yours: *news from the wider world*
+When a new release comes out, download it (zip, folder, or the single-file `the-one-skill.bundle.md`, which any chat can read) and give it to the skill: *"Here's a new version, update yourself."* It reads every file, tells you in a few lines what's new, and merges three ways:
+- the release's changes go in
+- your own local improvements stay
+- your agentspace isn't touched
+
+Any change to the read-only policy is called out on its own. One yes applies it, and *"undo the update"* puts the previous version back.
+
 ### ⚖️ Improves itself, within limits it cannot change
 the-one-skill can propose changes to its own instructions and maps, using the same plain-language yes and undo as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has eleven invariants. Among them:
 - originals are kept
@@ -106,6 +114,9 @@ references/agentspace/index.md            map of agentspace (ships empty; filled
 references/agentspace/*                   adapters and your notes (generated on your system, git-ignored)
 scripts/skillctl.py                       strategy A helper (Python 3 stdlib, no installs)
 scripts/guard_skills.py                   Claude Code hook: blocks direct edits inside skills folders
+scripts/bundle.py                         pack a release into one text file (no agentspace), or unpack it
+references/updating.md                    update the-one-skill from a downloaded release
+VERSION, CHANGELOG.md                     release number and plain-language notes
 tests/                                    unit tests for skillctl.py
 evals/checklist.md                        manual checks to run on a host before a release
 evals/headless/                           scripted Claude Code eval scenarios (claude -p)
@@ -124,6 +135,7 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | `apply <skill>` | Installs the draft (after your yes) |
 | `use <skill> original\|previous\|tuned\|<version>` | Reverts, steps back one version, or switches the improvement back in |
 | `history <skill>` | The kept versions: the original plus the last 5 applied |
+| `upgrade <skill> --from <folder> [--keep <path>]` | Drafts a new release merged three ways with your local changes; `--keep references/agentspace` keeps your setup |
 | `guard` | Prints the Claude Code hook that blocks direct edits to the skills folder |
 | `sets` / `undo-set <name> [--apply]` | Lists change sets; shows, then runs, the reverse steps of one (merges, vanilla, renames) |
 | `new <skill> [--from <folder>]` | Starts a skill that the-one-skill creates or installs, so it's tracked (going back to vanilla retires it) |
@@ -139,6 +151,13 @@ Built-in safeguards:
 
 ## Privacy
 Your agentspace can name your private skills and connectors, so everything in `references/agentspace/` except the empty `index.md` is git-ignored. Once the skill fills in your index, git shows it as modified. Keep it home: don't commit it upstream.
+
+## Releasing
+1. Bump `VERSION` and add a plain-language entry to `CHANGELOG.md`.
+2. Run `python3 scripts/bundle.py pack . -o the-one-skill.bundle.md`.
+3. Tag the release (for example `v1.1.0`) and attach a zip of the skill folder and the bundle.
+
+Users update by downloading either one and asking the-one-skill to update itself.
 
 ## Develop
 ```bash

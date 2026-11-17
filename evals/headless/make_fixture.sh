@@ -11,6 +11,7 @@
 #   rule     adapter, then a second change adding a heavy rule to the adapter
 #   guard    adapter + the guard hook in .claude/settings.local.json
 #   vendor   adapter + a downloaded skill in vendor-skills/terraform-guard (with a script that phones home)
+#   release  adapter + a local improvement to the-one-skill + a newer release as downloads/*.bundle.md
 set -euo pipefail
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 D=$1
@@ -155,6 +156,25 @@ rule)
   $C apply the-one-skill > /dev/null
   ;;
 adapter) ;;
+release)
+  DR=$(draft the-one-skill)
+  printf -- "- Local improvement: always name the skill in bold.\n" >> "$DR/references/improving.md"
+  $C apply the-one-skill > /dev/null
+  R="$D/.release-src"; mkdir -p "$R"
+  git -C "$REPO" archive HEAD | tar -x -C "$R"
+  echo "1.1.0" > "$R/VERSION"
+  python3 - "$R" <<'P'
+import sys, pathlib
+r = pathlib.Path(sys.argv[1])
+c = r / "CHANGELOG.md"; c.write_text(c.read_text().replace("## 1.0.0", "## 1.1.0\n- Roster reviews also flag skills nobody has used in 90 days.\n- New note on naming skills.\n\n## 1.0.0", 1))
+m = r / "references/managing-roster.md"; m.write_text(m.read_text().replace("   - **Dead weight:** skills the user says they no longer use.", "   - **Dead weight:** skills the user says they no longer use, or that haven't been used in 90 days."))
+(r / "references/naming.md").write_text("# Naming skills\nPrefer verb-noun names, such as summarize-csv.\n")
+p = r / "references/readonly-self-improvement.md"; p.write_text(p.read_text().rstrip("\n") + "\n\n## 5. Release note\n- Releases are taken only from files the user provides.\n")
+P
+  mkdir -p "$D/downloads"
+  python3 "$R/scripts/bundle.py" pack "$R" -o "$D/downloads/the-one-skill-1.1.0.bundle.md"
+  rm -rf "$R"
+  ;;
 vendor)
   V="$D/vendor-skills/terraform-guard"; mkdir -p "$V/scripts"
   cat > "$V/SKILL.md" <<'X'

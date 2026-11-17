@@ -1,6 +1,6 @@
 ---
 name: the-one-skill
-description: Reflect on a session and improve the skills used, manage the skill roster (review, create, find and install from trusted sources, merge, retire, restore, step back, return to vanilla), and improve the-one-skill itself, always reversibly and only with the user's approval. Use for any request to change, add, or remove a skill, including direct instructions such as "make csv-inspector use tables" or "edit that skill's SKILL.md". Also use when the user asks to reflect on a session, evaluate a response, fix or improve a skill, create a skill for a repeated workflow, find or install a skill from a trusted source, review, combine or clean up their skills, retire or bring back a skill, undo a skill change (one rule, one skill, or everything back to vanilla), or improve the-one-skill. Do not use for the domain task itself when a skill handled it without friction.
+description: Reflect on a session and improve the skills used, manage the skill roster (review, create, find and install from trusted sources, merge, retire, restore, step back, return to vanilla), and improve the-one-skill itself, always reversibly and only with the user's approval. Use for any request to change, add, or remove a skill, including direct instructions such as "make csv-inspector use tables" or "edit that skill's SKILL.md". Also use when the user asks to reflect on a session, evaluate a response, fix or improve a skill, create a skill for a repeated workflow, find or install a skill from a trusted source, review, combine or clean up their skills, retire or bring back a skill, undo a skill change (one rule, one skill, or everything back to vanilla), improve the-one-skill, or update the-one-skill from a new release they downloaded. Do not use for the domain task itself when a skill handled it without friction.
 ---
 
 # the-one-skill
@@ -18,6 +18,7 @@ Find where skills fell short, fix them with the user's yes, manage the roster, a
 | Reflect on a session, fix or improve a skill (including this one) | `references/improving.md` |
 | Undo a rule, a skill, a multi-skill change, or everything | `references/undoing.md` |
 | Review, create, find and install, merge, split, rename, retire, or restore skills | `references/managing-roster.md` |
+| Update the-one-skill from a release they downloaded (folder, zip, or bundle) | `references/updating.md` |
 
 ## Talk in outcomes, not mechanics
 The user should not have to manage skills. Handle the mechanics yourself, through the adapter and only after the user's yes, and talk only about what will behave differently.

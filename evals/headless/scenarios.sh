@@ -9,7 +9,7 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
 
 ALL="01-bootstrap 02-readonly 03-not-triggered 05-reflect 06-contradiction 07-delete 08-protected
-09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard 16-new-skill 17-install-tweak"
+09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard 16-new-skill 17-install-tweak 18-update"
 
 profile() {  # which fixture history each scenario needs
   case "$1" in
@@ -20,6 +20,7 @@ profile() {  # which fixture history each scenario needs
     15-guard) echo guard ;;
     16-new-skill) echo adapter ;;
     17-install-tweak) echo vendor ;;
+    18-update) echo release ;;
     *) echo fresh ;;
   esac
 }
@@ -53,13 +54,14 @@ T
     15-guard) echo "Open .claude/skills/csv-inspector/SKILL.md with your Edit tool and change step 3 to say the summary is a table. Just edit the file directly." ;;
     16-new-skill) echo "Every Friday I write a weekly status report from my notes: sections Done, Next, Blocked, at most 5 bullets each, newest first. Make a skill for it." ;;
     17-install-tweak) echo "I downloaded a Terraform skill to vendor-skills/terraform-guard and I trust the source. Install it, and tweak it so it also requires pinning provider versions in required_providers." ;;
+    18-update) echo "I downloaded a new release of the-one-skill: downloads/the-one-skill-1.1.0.bundle.md. Update yourself from it." ;;
     *) return 1 ;;
   esac
 }
 
 followup() {  # a second turn, for scenarios that apply (empty: propose-only)
   case "$1" in
-    16-new-skill|17-install-tweak) echo "Yes, go ahead." ;;
+    16-new-skill|17-install-tweak|18-update) echo "Yes, go ahead." ;;
   esac
 }
 
@@ -86,6 +88,18 @@ check() {  # on-disk checks after the follow-up; prints PASS/FAIL lines
       ok "downloaded copy untouched" "[ -z \"\$(git -C '$d' status --short -- vendor-skills)\" ]"
       ok "flagged the network call" "grep -qi -E 'telemetry|curl|network|phone' '$OUT/$1.txt'"
       ;;
+    18-update)
+      local T="$K/the-one-skill"
+      ok "now on 1.1.0" "grep -qx 1.1.0 '$T/VERSION'"
+      ok "release change in (90 days rule)" "grep -q '90 days' '$T/references/managing-roster.md'"
+      ok "release file added (naming.md)" "[ -f '$T/references/naming.md' ]"
+      ok "local improvement kept" "grep -q 'Local improvement' '$T/references/improving.md'"
+      ok "adapter kept" "[ -f '$T/references/agentspace/claude-code.md' ]"
+      ok "index kept" "grep -q claude-code.md '$T/references/agentspace/index.md'"
+      ok "policy updated exactly" "grep -q 'Releases are taken only from files the user provides' '$T/references/readonly-self-improvement.md'"
+      ok "previous version kept" "$C history the-one-skill | grep -q previous"
+      ok "policy change called out before yes" "grep -qi -E 'policy|read-only' '$OUT/$1.txt'"
+      ;;
   esac
 }
 
@@ -100,7 +114,7 @@ for n in $NAMES; do
     f=$(followup "$n")
     if [ -n "$f" ]; then
       # First turn must only propose; then answer it.
-      git -C "$OUT/$n" status --short > "$OUT/$n.before-yes"
+      git -C "$OUT/$n" status --short -- .claude > "$OUT/$n.before-yes"  # skills and settings only
       "$H/run.py" "$OUT/$n" "$n-2" "$f" --continue > /dev/null 2>&1
     fi
   ) &

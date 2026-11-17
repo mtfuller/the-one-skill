@@ -16,6 +16,10 @@ How it works
 * Files named `readonly-*` are never changed by `apply`; only the user edits them by hand.
 * A skill folder that is a git checkout keeps its `.git` across every swap.
 * `retire` moves a skill into the store (Claude Code stops loading it); `restore` brings it back.
+* `upgrade <skill> --from <folder>` drafts a new release merged three ways: changes in the release
+  go in, your local changes since the last release you installed stay, `--keep` paths (such as
+  references/agentspace) are kept as they are, and both-changed lines become conflict markers to
+  resolve in the draft. `readonly-*` files may change only to exactly the release's version.
 * `--set <name>` on apply/use/retire/restore records the step in a change set (in the store, so it
   needs no extra approval). `sets` lists them; `undo-set <name>` shows the reverse steps and
   `undo-set <name> --apply` runs them, newest first, after checking nothing changed since.
@@ -32,6 +36,7 @@ Commands
     python3 scripts/skillctl.py --root <skills_folder> new <skill> [--from <folder>]
     python3 scripts/skillctl.py --root <skills_folder> sets
     python3 scripts/skillctl.py --root <skills_folder> guard     (prints the Claude Code hook setting)
+    python3 scripts/skillctl.py --root <skills_folder> upgrade <skill> --from <folder> [--keep <path> ...]
     python3 scripts/skillctl.py --root <skills_folder> undo-set <name> [--apply]
     (apply, use, retire, restore also take: --set <name> [--note "<why>"])
     python3 scripts/skillctl.py --root <skills_folder> retire <skill>
@@ -159,6 +164,69 @@ def readonly_changes(old: Path, new: Path) -> list[str]:
     return out
 
 
+CONFLICT_START = "<<<<<<< yours (installed)"
+CONFLICT_MID = "======="
+CONFLICT_END = ">>>>>>> new release"
+
+
+def _changes(base: list[str], other: list[str]) -> list[tuple[int, int, list[str]]]:
+    sm = difflib.SequenceMatcher(None, base, other, autojunk=False)
+    return [(i1, i2, other[j1:j2]) for tag, i1, i2, j1, j2 in sm.get_opcodes() if tag != "equal"]
+
+
+def _apply(base: list[str], start: int, end: int, changes: list[tuple[int, int, list[str]]]) -> list[str]:
+    out, pos = [], start
+    for i1, i2, rep in changes:
+        out += base[pos:i1] + rep
+        pos = i2
+    return out + base[pos:end]
+
+
+def merge3(base: list[str], mine: list[str], theirs: list[str]) -> tuple[list[str], bool]:
+    """Line-based three-way merge. Returns (lines, had_conflict); conflicts get markers."""
+    tagged = sorted([(c, 0) for c in _changes(base, mine)] + [(c, 1) for c in _changes(base, theirs)],
+                    key=lambda t: (t[0][0], t[0][1]))
+    out: list[str] = []
+    pos, conflict, k = 0, False, 0
+    while k < len(tagged):
+        group = [tagged[k]]
+        lo, hi = tagged[k][0][0], tagged[k][0][1]
+        k += 1
+        while k < len(tagged):
+            (i1, i2, _), _side = tagged[k]
+            if i1 < hi or (i1 == i2 == lo == hi):  # overlapping ranges, or two insertions at one point
+                group.append(tagged[k])
+                hi = max(hi, i2)
+                k += 1
+            else:
+                break
+        out += base[pos:lo]
+        sides = {side for _, side in group}
+        mine_ch = [c for c, side in group if side == 0]
+        theirs_ch = [c for c, side in group if side == 1]
+        a = _apply(base, lo, hi, mine_ch)
+        b = _apply(base, lo, hi, theirs_ch)
+        if len(sides) == 1 or a == b:
+            out += a if sides == {0} else b
+        else:
+            conflict = True
+            out += [CONFLICT_START + "\n"] + a + [CONFLICT_MID + "\n"] + b + [CONFLICT_END + "\n"]
+        pos = hi
+    return out + base[pos:], conflict
+
+
+def _version_tuple(folder: Path) -> tuple[int, ...] | None:
+    f = folder / "VERSION"
+    try:
+        return tuple(int(x) for x in f.read_text(encoding="utf-8").strip().split("."))
+    except (OSError, ValueError):
+        return None
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 class SkillCtl:
     def __init__(self, root: str | Path, store: str | Path | None = None) -> None:
         self.root = Path(root).expanduser().resolve()
@@ -193,7 +261,7 @@ class SkillCtl:
         return [h["digest"] for h in st.get("history", [])]
 
     def _known(self, st: dict[str, Any]) -> set[str | None]:
-        return {st.get("original"), *self._digests(st)}
+        return {st.get("original"), st.get("upstream"), (st.get("upgrade") or {}).get("upstream"), *self._digests(st)}
 
     def _save_state(self, name: str, st: dict[str, Any]) -> None:
         p = self.sdir(name) / "state.json"
@@ -274,6 +342,7 @@ class SkillCtl:
             self._save_state(name, st)
         d = self.sdir(name) / "draft"
         shutil.rmtree(d, ignore_errors=True)
+        st.pop("upgrade", None)  # a fresh draft replaces any pending upgrade
         st["draft_base"] = self._copy(installed, d)
         self._save_state(name, st)
         return d
@@ -302,6 +371,104 @@ class SkillCtl:
             raise
         self._save_state(name, {"name": name, "original": None, "created": True, "tuned": None, "history": []})
         return d
+
+    def upgrade(self, name: str, source: str | Path, keep: Sequence[str] = (),
+                allow_downgrade: bool = False) -> dict[str, Any]:
+        """Draft a new release of a skill, merged three ways with the installed copy.
+
+        Base = the release installed last (or the original). Returns a report; nothing is installed
+        until `apply`, after the user's yes."""
+        installed = self.installed(name)
+        if installed.is_symlink() or not (installed / "SKILL.md").is_file():
+            raise Refused(f"No installed skill `{name}` in {self.root} (links are not supported).")
+        up = Path(source).expanduser().resolve()
+        if not (up / "SKILL.md").is_file():
+            raise Refused(f"{up} has no SKILL.md; point --from at the unpacked skill folder.")
+        if frontmatter_name(up) != name:
+            raise Refused(f"{up} is `{frontmatter_name(up)}`, not `{name}`; nothing was changed.")
+        v_local, v_up = _version_tuple(installed), _version_tuple(up)
+        if v_local and v_up and v_up < v_local and not allow_downgrade:
+            raise Refused(f"{up} is older ({'.'.join(map(str, v_up))}) than the installed "
+                          f"{'.'.join(map(str, v_local))}; pass --allow-downgrade if that is intended.")
+        st = self.state(name)
+        if st is None:
+            self.sdir(name).mkdir(parents=True, exist_ok=True)
+            st = {"name": name, "original": self._store_version(name, installed), "tuned": None, "history": []}
+        base_digest = st.get("upstream") or st["original"]
+        base_dir = self.version(name, base_digest) if base_digest else self.sdir(name) / "(none)"
+        if base_digest and folder_hash(base_dir) != base_digest:
+            raise Refused(f"The stored copy of the last release of `{name}` is damaged; nothing was changed.")
+        up_digest = self._store_version(name, up)
+
+        keep_prefixes = [k.strip("/") for k in keep]
+        def kept(rel: str) -> bool:
+            return any(rel == k or rel.startswith(k + "/") for k in keep_prefixes)
+
+        B, L, U = files_of(base_dir), files_of(installed), files_of(up)
+        d = self.sdir(name) / "draft"
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir(parents=True)
+        report: dict[str, Any] = {k: [] for k in ("from_release", "yours_kept", "merged", "conflicts",
+                                                   "kept_paths", "readonly_updated", "removed")}
+        readonly_ok: dict[str, str | None] = {}
+
+        def put(rel: str, data: bytes) -> None:
+            dst = d / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(data)
+
+        for rel in sorted(set(B) | set(L) | set(U)):
+            b = B[rel].read_bytes() if rel in B else None
+            l = L[rel].read_bytes() if rel in L else None
+            u = U[rel].read_bytes() if rel in U else None
+            if kept(rel):
+                if l is not None:
+                    put(rel, l)
+                    report["kept_paths"].append(rel)
+                continue
+            if Path(rel).name.startswith(READONLY_PREFIX):
+                if u == b or u == l:
+                    result = l
+                elif l == b:
+                    result = u
+                    readonly_ok[rel] = _sha(u) if u is not None else None
+                    report["readonly_updated"].append(rel)
+                else:
+                    shutil.rmtree(d, ignore_errors=True)
+                    raise Refused(f"`{rel}` was edited by hand and also changed in the release. Read-only "
+                                  "files are reconciled by the user, by hand; nothing was changed.")
+                if result is not None:
+                    put(rel, result)
+                continue
+            if u == b or l == u:  # release didn't touch it, or both agree
+                result, bucket = l, ("yours_kept" if l != b else None)
+            elif l == b:  # only the release changed it
+                result, bucket = u, ("from_release" if u is not None else "removed")
+            elif u is None:  # release removed it, you changed it
+                result, bucket = l, "yours_kept"
+            elif l is None:  # you removed it, release changed it
+                result, bucket = u, "conflicts"
+            else:
+                try:
+                    lines, clash = merge3((b or b"").decode().splitlines(keepends=True),
+                                          l.decode().splitlines(keepends=True),
+                                          u.decode().splitlines(keepends=True))
+                    result, bucket = "".join(lines).encode(), ("conflicts" if clash else "merged")
+                except UnicodeDecodeError:
+                    result, bucket = l, "conflicts"
+            if result is not None:
+                put(rel, result)
+            if bucket:
+                report[bucket].append(rel)
+
+        st["draft_base"] = folder_hash(installed)
+        st["upgrade"] = {"upstream": up_digest, "readonly": readonly_ok, "conflicts": report["conflicts"],
+                         "from": ".".join(map(str, v_local)) if v_local else None,
+                         "to": ".".join(map(str, v_up)) if v_up else None}
+        self._save_state(name, st)
+        report["draft"] = str(d)
+        report["from_version"], report["to_version"] = st["upgrade"]["from"], st["upgrade"]["to"]
+        return report
 
     def history(self, name: str) -> list[dict[str, Any]]:
         """Versions that `use` can install, oldest first, with which one is installed."""
@@ -343,8 +510,19 @@ class SkillCtl:
         fm_name = frontmatter_name(d)
         if fm_name != name:
             raise Refused(f"The draft's frontmatter `name` must stay `{name}` (found {fm_name!r}).")
+        upg = st.get("upgrade") or {}
+        for rel in upg.get("conflicts", []):
+            f = d / rel
+            if f.is_file() and CONFLICT_START.encode() in f.read_bytes():
+                raise Refused(f"`{rel}` still has conflict markers; resolve them in the draft first.")
         if self.installed(name).is_dir():
-            locked = readonly_changes(self.installed(name), d)
+            allowed_ro = upg.get("readonly", {})
+            locked = [
+                rel for rel in readonly_changes(self.installed(name), d)
+                if not (rel in allowed_ro and (
+                    (allowed_ro[rel] is None and not (d / rel).exists())
+                    or ((d / rel).is_file() and _sha((d / rel).read_bytes()) == allowed_ro[rel])))
+            ]
             if locked:
                 raise Refused(
                     f"The draft changes read-only file(s): {', '.join(locked)}. Only the user edits "
@@ -364,6 +542,9 @@ class SkillCtl:
         st["history"] = hist[-KEEP_APPLIED:]
         st["tuned"] = digest
         st.pop("draft_base", None)
+        if upg:
+            st["upstream"] = upg["upstream"]  # the base for the next upgrade
+            st.pop("upgrade", None)
         self._save_state(name, st)
         shutil.rmtree(d, ignore_errors=True)
         self._prune(name, st)
@@ -621,6 +802,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = sub.add_parser("undo-set")
     p.add_argument("name")
     p.add_argument("--apply", action="store_true", help="Run the reverse steps (default: only show them)")
+    p = sub.add_parser("upgrade", help="Draft a new release merged with your local changes")
+    p.add_argument("skill")
+    p.add_argument("--from", dest="source", required=True, help="Unpacked folder of the new release")
+    p.add_argument("--keep", action="append", default=[], help="Path to keep exactly as installed (repeatable)")
+    p.add_argument("--allow-downgrade", action="store_true")
     p = sub.add_parser("new")
     p.add_argument("skill")
     p.add_argument("--from", dest="source", help="Folder with the new skill's files (default: a SKILL.md template)")
@@ -679,6 +865,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif a.cmd == "use":
             digest = ctl.use(a.skill, a.version)
             print(f"`{a.skill}`: {a.version} version installed ({digest}).")
+        elif a.cmd == "upgrade":
+            r = ctl.upgrade(a.skill, a.source, a.keep, a.allow_downgrade)
+            print(f"Upgrade draft: {r['draft']}  ({r['from_version'] or '?'} -> {r['to_version'] or '?'})")
+            labels = {"from_release": "from the release", "yours_kept": "your changes kept",
+                      "merged": "merged (both changed, no clash)", "conflicts": "CONFLICTS (resolve in the draft)",
+                      "kept_paths": "kept as installed", "readonly_updated": "read-only, updated to the release",
+                      "removed": "removed by the release"}
+            for key, label in labels.items():
+                if r[key]:
+                    print(f"{label}:")
+                    for rel in r[key]:
+                        print(f"  {rel}")
+            print("Nothing is installed yet. Resolve any conflicts, then `apply` after the user's yes.")
         elif a.cmd == "new":
             print(f"New skill draft: {ctl.new(a.skill, a.source)}\nWrite its files there, show `diff`, and `apply` after approval.")
         elif a.cmd == "history":
