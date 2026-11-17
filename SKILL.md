@@ -20,8 +20,10 @@ Look back at a session, find where skills fell short, propose concrete fixes, an
 
 ## Step 0: Load your agentspace (always first)
 1. Read `references/readonly-self-improvement.md`. It holds the rules no version of this skill may break.
-2. List `references/agentspace/` and read the adapter whose `Detect:` line matches this host. It says how to list, change, revert, and retire skills here, and which skills, connectors, or plugins are protected. Its `Agentspace files` section lists the other files you created for this user (preferences, roster notes, domain rules, and so on). Open each one when its "read when" applies.
-3. If no adapter matches, build one with `references/building-adapters.md` before changing anything. You can still reflect and propose (Steps 1–5) without an adapter, but you cannot apply.
+2. Read `references/agentspace/index.md`. It summarizes everything in agentspace: each host adapter with its `Detect` signals, and every other file with its purpose and when to read it.
+3. Read the adapter whose `Detect` matches this host. It says how to list, change, revert, and retire skills here, and which skills, connectors, or plugins are protected. Open the other files listed in the index when their "read when" applies.
+4. Check the index against the folder. If a file is missing from the index, or an index entry has no file, tell the user and propose a fix to the index. Do not guess.
+5. If the index is missing, rebuild it from the files (`references/building-adapters.md` §8). If no adapter matches this host, build one with `references/building-adapters.md` before changing anything. You can still reflect and propose (Steps 1–5) without an adapter, but you cannot apply.
 
 ## What the user wants → what to do
 | Request | Follow |
