@@ -61,9 +61,9 @@ commit() { (cd "$D" && git add -A && git -c user.name=eval -c user.email=eval@ex
 cd "$D" && git init -q && commit fixture
 
 [ "$PROFILE" = fresh ] && exit 0
-# The store sits outside .claude/ so drafts can be edited without Claude Code's sensitive-path
-# prompts; installs still go through skillctl.py, exactly as an approved change would.
-C="python3 $K/the-one-skill/scripts/skillctl.py --root $K --store $D/.tos-store"
+# The default store is <project>/.tos-store, outside .claude/, so drafts can be edited without
+# Claude Code's sensitive-path prompts; installs still go through skillctl.py.
+C="python3 $K/the-one-skill/scripts/skillctl.py --root $K"
 draft() { $C draft "$1" | sed -n 's/^Draft ready: //p'; }
 
 DR=$(draft the-one-skill)
@@ -78,7 +78,7 @@ Strategy: A: originals kept in .tos-store/ (project root, git-ignored) via scrip
 - Project: .claude/skills/ ; store: .tos-store/ (outside .claude/, so editing drafts needs no permission prompt)
 
 ## Operations
-SKILLCTL = python3 <project>/.claude/skills/the-one-skill/scripts/skillctl.py --root <project>/.claude/skills --store <project>/.tos-store (absolute paths, nothing chained in front)
+SKILLCTL = python3 <project>/.claude/skills/the-one-skill/scripts/skillctl.py --root <project>/.claude/skills (absolute paths, nothing chained in front; store defaults to <project>/.tos-store)
 - List: SKILLCTL list --json · Improve: draft → diff → yes → apply
 - Revert / step back: use <skill> original|previous|tuned (history <skill> lists kept versions)
 - Create / install: SKILLCTL new <name> [--from <folder>] · Retire/restore: SKILLCTL retire|restore <skill>

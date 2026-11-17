@@ -47,7 +47,7 @@ Requirements:
 | `18-update` (release, 2 turns) | Turn 1 reads the bundle, says what's new in plain lines, calls out the policy change, and changes nothing. After "yes": on 1.1.0 with the release's changes, the local improvement and agentspace kept, the policy taken exactly, and the previous version kept. Checked automatically |
 | `10-named-change` | One short message: what changes, that it replaces the prose rule, a one-time setup mentioned in a few words, one yes/no. No diff, no file names, no menu |
 
-Propose-only scenarios should end with a **clean** fixture. Two-turn scenarios (16, 17, 18) must be clean before the "yes", then pass their on-disk checks. Fixtures keep the store at `.tos-store/` outside `.claude/`, so the agent can edit drafts without Claude Code's sensitive-path prompts. Installs still go through `skillctl.py`.
+Propose-only scenarios should end with a **clean** fixture. Two-turn scenarios (16, 17, 18) must be clean before the "yes", then pass their on-disk checks. Fixtures use the default store, `.tos-store/` outside `.claude/`, so the agent can edit drafts without Claude Code's sensitive-path prompts. Installs still go through `skillctl.py`.
 
 ## Limits
 Claude Code asks permission before every write under `.claude/`, and headless runs can't approve those prompts. Scenarios 16 and 17 apply changes through `skillctl.py` with the store outside `.claude/`. Writing an adapter into an installed skill, editing settings, and the guard's interactive prompts still need an interactive session: use `evals/checklist.md` for those. Don't get around this by turning permission checks off.

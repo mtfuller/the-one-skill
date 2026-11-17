@@ -4,7 +4,8 @@
 How it works
 ------------
 * The first `draft` of a skill saves an exact copy of the installed skill as its original, in a
-  store next to the skills folder (e.g. ~/.claude/the-one-skill-store/). It is never modified.
+  store outside the skills folder (default: <project>/.tos-store for <project>/.claude/skills, see
+  default_store). It is never modified.
 * You edit the draft (also in the store, so Claude Code never loads it), then `apply` installs it.
   The store keeps the original and the last few applied versions (the newest is "tuned").
 * `use <skill> original` puts the original back, `use <skill> previous` steps back one applied
@@ -56,7 +57,23 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
-STORE_DIRNAME = "the-one-skill-store"
+STORE_DIRNAME = ".tos-store"
+LEGACY_STORE_DIRNAME = "the-one-skill-store"
+
+
+def default_store(root: Path) -> Path:
+    """Where the store goes when --store isn't given.
+
+    <x>/.claude/skills -> <x>/.tos-store (outside .claude/, so editing drafts needs no permission
+    prompt on Claude Code); any other skills folder -> a .tos-store next to it. A store already in
+    the old place (<skills folder's parent>/the-one-skill-store) keeps being used until
+    `move-store` moves it."""
+    legacy = root.parent / LEGACY_STORE_DIRNAME
+    if legacy.is_dir():
+        return legacy
+    if root.name == "skills" and root.parent.name == ".claude":
+        return root.parent.parent / STORE_DIRNAME
+    return root.parent / STORE_DIRNAME
 SKIP = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
 READONLY_PREFIX = "readonly-"
@@ -232,7 +249,7 @@ class SkillCtl:
         self.root = Path(root).expanduser().resolve()
         if not self.root.is_dir():
             raise Refused(f"Skills folder not found: {self.root}")
-        self.store = Path(store).expanduser().resolve() if store else self.root.parent / STORE_DIRNAME
+        self.store = Path(store).expanduser().resolve() if store else default_store(self.root)
         self.change_set: tuple[str, str | None] | None = None  # (name, note) while recording
         if self.store == self.root or self.root in self.store.parents:
             raise Refused("The store must be outside the skills folder, or Claude Code would load stored copies.")
@@ -737,6 +754,25 @@ class SkillCtl:
             rows.append((sd.name, " ".join(notes)))
         return rows
 
+    def move_store(self, to: str | Path | None = None) -> Path:
+        """Move the whole store (originals, versions, drafts, change sets) to a new folder."""
+        dest = Path(to).expanduser().resolve() if to else None
+        if dest is None:
+            dest = (self.root.parent.parent / STORE_DIRNAME if self.root.name == "skills" and self.root.parent.name == ".claude"
+                    else self.root.parent / STORE_DIRNAME)
+        if dest == self.store:
+            raise Refused(f"The store is already at {dest}.")
+        if dest.exists():
+            raise Refused(f"{dest} already exists; nothing was changed.")
+        if dest == self.root or self.root in dest.parents:
+            raise Refused("The store must be outside the skills folder.")
+        if not self.store.is_dir():
+            raise Refused(f"There is no store at {self.store} to move.")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(self.store), str(dest))
+        self.store = dest
+        return dest
+
     def guard_settings(self) -> dict[str, Any]:
         """Claude Code settings that block direct Edit/Write inside this skills folder."""
         script = Path(__file__).resolve().parent / "guard_skills.py"
@@ -786,7 +822,7 @@ class SkillCtl:
 def main(argv: Sequence[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Safe, reversible skill changes for Claude Code.")
     ap.add_argument("--root", required=True, help="Skills folder, e.g. ~/.claude/skills or .claude/skills")
-    ap.add_argument("--store", help=f"Store folder (default: next to the skills folder, {STORE_DIRNAME}/)")
+    ap.add_argument("--store", help=f"Store folder (default: <project>/{STORE_DIRNAME} for <project>/.claude/skills)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("list").add_argument("--json", action="store_true", help="Machine-readable output")
@@ -798,6 +834,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for cmd in ("apply", "retire", "restore"):
         sub.add_parser(cmd, parents=[rec]).add_argument("skill")
     sub.add_parser("sets")
+    p = sub.add_parser("move-store", help="Move the store (e.g. from the old .claude/the-one-skill-store to .tos-store)")
+    p.add_argument("--to", help=f"Destination (default: <project>/{STORE_DIRNAME})")
     sub.add_parser("guard", help="Print the Claude Code hook setting that blocks direct edits to skills")
     p = sub.add_parser("undo-set")
     p.add_argument("name")
@@ -818,6 +856,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ctl = SkillCtl(a.root, a.store)
         if getattr(a, "change_set", None):
             ctl.begin_set(a.change_set, a.note)
+        if a.cmd != "move-store" and ctl.store.name == LEGACY_STORE_DIRNAME:
+            print(f"Note: using the store at its old place, {ctl.store}. `move-store` moves it to "
+                  f"<project>/{STORE_DIRNAME}, outside .claude/.", file=sys.stderr)
         if a.cmd == "status":
             rows = ctl.status()
             print("\n".join(f"{n:32} {s}" for n, s in rows) if rows else "No skills changed by the-one-skill yet.")
@@ -832,6 +873,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"{r['name']:32} {r['state']:10} {desc}")
                 for issue in r["issues"]:
                     print(f"{'':32} ! {issue}")
+        elif a.cmd == "move-store":
+            old = ctl.store
+            print(f"Store moved from {old} to {ctl.move_store(a.to)}. Pass --store if you use a non-default place.")
         elif a.cmd == "guard":
             print(json.dumps(ctl.guard_settings(), indent=2))
             print("Merge this into .claude/settings.local.json (keep any hooks already there).", file=sys.stderr)

@@ -482,6 +482,37 @@ class SkillCtlTest(unittest.TestCase):
         (self.skill / "tests" / "test_x.py").write_text("pass\n")
         self.assertIn("=== FILE: tests/test_x.py ===", bundle.pack(self.skill))  # releases are whole folders
 
+    def test_default_store_location(self) -> None:
+        proj = self.tmp / "proj"
+        skills = proj / ".claude" / "skills"
+        skills.mkdir(parents=True)
+        self.assertEqual(SkillCtl(skills).store, (proj / ".tos-store").resolve())
+        self.assertEqual(self.ctl.store, (self.tmp / ".tos-store").resolve())  # other layouts: next to it
+        legacy = proj / ".claude" / "the-one-skill-store"
+        legacy.mkdir()
+        self.assertEqual(SkillCtl(skills).store, legacy.resolve())  # an existing old store keeps working
+
+    def test_move_store_keeps_everything(self) -> None:
+        proj = self.tmp / "proj"
+        skills = proj / ".claude" / "skills"
+        shutil.copytree(self.skill, skills / "csv-inspector")
+        legacy = proj / ".claude" / "the-one-skill-store"
+        ctl = SkillCtl(skills, legacy)
+        d = ctl.draft("csv-inspector")
+        (d / "SKILL.md").write_text(SKILL + "2. Tuned.\n")
+        ctl.apply("csv-inspector")
+        ctl = SkillCtl(skills)  # picks up the old store by default
+        self.assertEqual(ctl.store, legacy.resolve())
+        dest = ctl.move_store()
+        self.assertEqual(dest, (proj / ".tos-store").resolve())
+        self.assertFalse(legacy.exists())
+        ctl = SkillCtl(skills)
+        self.assertEqual(ctl.store, dest)
+        ctl.use("csv-inspector", "original")
+        self.assertEqual((skills / "csv-inspector" / "SKILL.md").read_text(), SKILL)
+        with self.assertRaises(Refused):
+            ctl.move_store()  # already there
+
     def test_cli(self) -> None:
         args = ["--root", str(self.root)]
         self.assertEqual(skillctl.main(args + ["draft", "csv-inspector"]), 0)
