@@ -2,6 +2,8 @@
 
 Use this reference when a task has no matching installed skill, when a multi-step workflow repeats across sessions, or when the user asks to find or create a skill.
 
+**Prefer fewer skills.** Before proposing a new skill, check whether refining an installed skill would cover the task. Propose a new skill only for a workflow the user is likely to repeat, and never install one without explicit approval.
+
 ---
 
 ## 1. Check Trusted Skill Sources First
@@ -19,13 +21,22 @@ Always search verified official organization catalogs before authoring a skill f
    ```bash
    python3 scripts/lint_skills.py --check-source-url <candidate_url>
    ```
-3. Stage the fetched files (e.g., `/tmp/staged-skill/<skill-name>/`) and run the deterministic security & lint gate:
+3. Stage the fetched files **outside the skills root** (e.g., `/tmp/staged-skill/<skill-name>/`) and run the deterministic security & lint gate:
    ```bash
    python3 scripts/lint_skills.py <staged_dir>
    ```
-   - Blocks prompt injection (`SEC-001`), network exfiltration (`SEC-002`), credential harvesting (`SEC-003`), opaque `eval`/`exec`/`base64` payloads (`SEC-004`), and ignore-marker tampering (`SEC-005`).
-   - If the upstream skill exceeds **800 tokens** or lacks explicit `Use when / Do not use when` frontmatter guidance, tailor it before installation.
-4. Present a concise discovery card (`<name>`, `<provider>:<repo>`, `lint_skills.py: PASS`, token count) and ask if the user wants to install it with `<!-- the-one-skill:opt-in -->` (recommended) or vanilla.
+   - Blocks prompt injection (`SEC-001`), network exfiltration (`SEC-002`), credential harvesting (`SEC-003`), opaque `eval`/`exec`/`base64` payloads (`SEC-004`), and marker tampering (`SEC-005`). These checks are pattern-based and miss a lot: also read every staged file before installing.
+   - If the upstream skill exceeds **800 tokens** or lacks explicit `Use when / Do not use when` frontmatter guidance, tailor it in the staging folder before installation.
+4. **Roster Overlap Check:** Lint the staged skill together with the installed roster so trigger collisions are reported before anything is installed:
+   ```bash
+   python3 scripts/lint_skills.py <skills_root> <staged_dir>
+   ```
+   If it overlaps an installed skill, propose refining that skill instead (`references/evolve.md`), or install with `--replaces` to merge.
+5. Present a concise discovery card (`<name>`, `<provider>:<repo>`, `lint_skills.py: PASS`, token count, overlaps) and install only after the user approves:
+   ```bash
+   python3 scripts/skillctl.py --root <skills_root> install <staged_dir>
+   ```
+   On Gemini Web, create the skill through Gemini's own skill tools instead (`vendors/gemini-web.md`).
 
 ---
 
@@ -70,12 +81,6 @@ Brief overview of the skill's core responsibility in 1–2 sentences. Keep this 
 3. **Run Deterministic Checks:** Execute `python3 scripts/<helper>.py` (pure Python 3 stdlib) for validation or transformation.
 4. **Emit Output:** Write structured reports or diffs to `artifacts/` and present a concise summary.
 
-<!-- the-one-skill:opt-in -->
-<!-- the-one-skill:start -->
-### Continuous Evolution (`the-one-skill`)
-- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/evolve.md` (§1) to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
-- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, run the Full-Roster Orthogonality Audit in `the-one-skill/references/evolve.md` (§2).
-<!-- the-one-skill:end -->
 ```
 
-Validate the draft with `python3 scripts/lint_skills.py <staged_skill_dir>` and get user approval before installing.
+Validate the draft with `python3 scripts/lint_skills.py <skills_root> <staged_skill_dir>` (lint + overlap check), get user approval, then install with `python3 scripts/skillctl.py --root <skills_root> install <staged_skill_dir>`.

@@ -1,53 +1,59 @@
-# Configure: Consent, Rollback, Uninstall & Export (`references/configure.md`)
+# Configure: Status, Locks, Revert, Retire & Export (`references/configure.md`)
 
-Use this reference for all control-plane administration: onboarding skills (`init`), managing consent (`opt-in` vs. `ignore`), restoring backups (`revert`), stripping integration blocks (`uninstall`), and exporting diffs for upstream PRs (`export`).
+Use this reference for administration of the skill library: checking status, locking skills, reverting or reapplying refinements, retiring skills, cleaning up stored history, and exporting changes to `the-one-skill` itself.
 
----
-
-## 1. Onboarding & Consent Management (`init`)
-
-1. **Discover Installed Skills:**
-   - Load the host adapter (`vendors/gemini-web.md`, `vendors/claude-code.md`, or `vendors/codex.md`).
-   - On **Gemini Web**, check Memory first for the `the-one-skill` consent roster (`opt-in` / `ignore` list) to avoid redundant file reads, then inspect any newly uploaded skills.
-   - Run `python3 scripts/lint_skills.py <skills_root_dir>` to inspect token counts, frontmatter boundaries, consent status, and trigger overlaps.
-2. **Per-Skill Consent Prompt:**
-   Present a summary table of unmanaged skills and ask the user to choose per skill:
-   - **Opt-In:** Mounts `<!-- the-one-skill:opt-in -->` + the canonical integration block below. Eligible for evolution and orthogonality audits.
-   - **Opt-Out (`ignore`):** Appends `<!-- the-one-skill:ignore -->`. Locked—`the-one-skill` will never read it for evolution or propose edits unless explicitly unlocked.
-   - **Ask Later:** Leaves the skill unmanaged for this session.
-
-### Canonical Integration Block (Mount on Opt-In)
-Save a pre-mount snapshot to `artifacts/snapshots/<skill-name>.<timestamp>.bak.md`, verify `SKILL.md <= 800` tokens after mounting, get diff approval, and append this exact block separated by one blank line (idempotent):
-
-```markdown
-<!-- the-one-skill:opt-in -->
-<!-- the-one-skill:start -->
-### Continuous Evolution (`the-one-skill`)
-- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/evolve.md` (§1) to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
-- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, run the Full-Roster Orthogonality Audit in `the-one-skill/references/evolve.md` (§2).
-<!-- the-one-skill:end -->
-```
-
-On Gemini Web, mirror `{skill_name: "opt-in" | "ignore"}` in Memory so future turns know consent status immediately.
+On **Gemini Web** there is no `skillctl.py`; follow `vendors/gemini-web.md` instead, which maps each operation below to Gemini's own skill tools.
 
 ---
 
-## 2. Rollback (`revert`) & Clean Removal (`uninstall`)
+## 0. The Swap Model (Applies to Every Operation)
 
-- **Revert to Snapshot (`revert`):**
-  1. Locate the latest (or requested) snapshot in `artifacts/snapshots/<skill-name>.<YYYYMMDDTHHMMSSZ>.bak.md`.
-  2. Show the unified diff between the current `SKILL.md` and the snapshot.
-  3. Upon user confirmation, restore the snapshot and validate with `python3 scripts/lint_skills.py`.
-- **Strip Integration Blocks (`uninstall`):**
-  1. Remove `<!-- the-one-skill:opt-in -->` (or `<!-- the-one-skill:ignore -->`) and the `<!-- the-one-skill:start --> ... <!-- the-one-skill:end -->` block.
-  2. Normalize trailing whitespace to a single newline (`\n`) so the file matches its exact pre-mount vanilla bytes.
-  3. To permanently lock a skill instead, strip the `start...end` block and place `<!-- the-one-skill:ignore -->` at the bottom of `SKILL.md`.
+- **Originals are never edited.** The first refinement saves a pristine copy of the original in the store and installs one working copy at the same path, with the same name. Later refinements edit only that working copy.
+- **Disabled means out of the skills folder.** Inactive versions live in the store, a sibling of the skills root (default `<skills_root>/../the-one-skill-store/`), which the host never loads.
+- **At most one installed version per skill.** Stored history never counts as an installed skill.
+- **Hand edits are protected.** Every swap checks the installed folder against its recorded content hash. If it was changed outside `the-one-skill`, the operation is refused until the user reviews the change and runs `accept`.
+- Set `--root` to the skills folder the host loads (see the host adapter). All commands below are `python3 scripts/skillctl.py --root <skills_root> <command>`.
 
 ---
 
-## 3. Local State Export & PR Diff (`export`)
+## 1. Status & Onboarding (`init`)
 
-To contribute local improvements back to `mtfuller/the-one-skill`:
+1. Load the host adapter and identify the skills root(s).
+2. Run `status` to list every skill as `unmanaged`, `original`, `tuned`, `new`, `uninstalled`, or `retired`, with health (`ok`, `EDITED-OUTSIDE`, `MISSING`, `CONFLICT`), locks, and stored history.
+3. Run `python3 scripts/lint_skills.py <skills_root>` for token counts, frontmatter boundaries, and trigger overlaps. Lint findings on unmanaged skills are informational: nothing is changed until a refinement is approved.
+4. Ask the user which skills (if any) to **lock**. Locked skills are never refined, merged, or retired. No other onboarding step is needed: skills become managed on their first approved refinement.
+
+## 2. Locks (`lock` / `unlock`)
+
+- `lock <skill>` records the lock in the store; the skill's files are not touched.
+- `unlock <skill>` only when the user explicitly asks.
+
+## 3. Revert & Reapply (`revert` / `reapply`)
+
+- **Preview:** `diff <skill>` shows original vs. installed working copy (or installed vs. parked copy after a revert).
+- `revert <skill>`:
+  - Refined skill: the working copy is parked in the store and the original is restored byte-for-byte, including `references/` and `scripts/`.
+  - Skill installed by `the-one-skill`: it is parked, and any skills it replaced (merge/split) are restored.
+- `reapply <skill>`: swaps the parked working copy (or new skill) back in, and retires the replaced skills again.
+- `undo <skill>`: steps the working copy back one refinement (no effect on the original).
+- On **Codex**, tell the user to restart Codex after any revert, reapply, undo, retire, or install.
+
+## 4. Retire (`retire` / `unretire`)
+
+- `retire <skill>` moves the installed skill into the store. This is the only form of "delete" `the-one-skill` performs; permanent deletion is left to the user.
+- `unretire <skill>` puts it back. A skill retired by a merge is restored by reverting the merged skill instead.
+
+## 5. Hand Edits & Housekeeping (`accept` / `prune` / `abort`)
+
+- `accept <skill>`: after showing the user the outside edits (`diff`), record them as the current state. If the original is installed, the edits become the new original.
+- `abort <skill>`: discard an uncommitted draft.
+- `prune <skill> --keep N`: drop old working-copy history and discarded states. Ask first; this cannot be undone.
+
+---
+
+## 6. Local State Export & PR Diff (`export`)
+
+To contribute improvements to `the-one-skill` itself back to `mtfuller/the-one-skill`:
 1. Stage local `the-one-skill` files into `artifacts/local-export/`.
 2. Compare against a clean upstream checkout (Claude Code / Codex) or upstream files fetched from `raw.githubusercontent.com/mtfuller/the-one-skill/main/...` (Gemini Web):
    ```bash
