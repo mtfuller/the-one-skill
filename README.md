@@ -12,7 +12,7 @@ It works on any host that loads skills: Claude Code, Gemini, or another agent th
 ## ✦ What it can do
 
 ### 🔥 Reflect and improve: *the council at the hearth*
-After a session it names the skills that came with you and what you had to correct, then offers **numbered, specific fixes**. "Add a rule: dates in YYYY-MM-DD" is specific. "Make the format clearer" is not. Each fix is checked against the skill's existing rules. A conflict is raised and confirmed by you, never overruled quietly. If you've already named the change you want, it goes straight to the diff, and it asks one question, not a string of them.
+After a session it tells you, in a line or two, what went wrong and what it would change: *"CSV summaries kept coming back as prose. From now on they'll be a table, which replaces the skill's old prose rule. Apply?"* You say yes once. You never have to manage skills, files, or versions: it talks about how things will behave, never about the mechanics. If you want the exact diff, just ask, and it shows it right away.
 
 ### 🗺️ Manage your roster: *keeping the company in order*
 It reviews every installed skill and flags:
@@ -55,15 +55,15 @@ It carries no maps for particular hosts. Instead it carries a **framework for dr
 | C. Backup first | Edit only | A backup you download before the first change | Re-upload it |
 | D. Hand-off | No write access | Unchanged; you apply the files yourself | Put the old files back |
 
-3. Writes the map, `references/agentspace/<host>.md`. It records where skills live, the exact steps for each operation, any permission prompts to expect, and which skills, connectors, or plugins are **protected** and must never be touched. You see the file before it's saved.
+3. Writes the map, `references/agentspace/<host>.md`. It records where skills live, the exact steps for each operation, any permission prompts to expect, and which skills, connectors, or plugins are **protected** and must never be touched. To you it's a one-time setup you agree to in a word. Ask to see the map if you're curious.
 
 If the land turns out different from the map, it stops, shows you what it found, and offers a correction.
 
 ### 📕 Learns your setup: *the red book of your journeys*
-`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and a history of past changes: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
+`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and trusted skill sources: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
 ### ⚖️ Improves itself, within limits it cannot change
-the-one-skill can propose changes to its own instructions and maps, using the same diff, approval and revert as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has eleven invariants. Among them:
+the-one-skill can propose changes to its own instructions and maps, using the same plain-language yes and undo as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has eleven invariants. Among them:
 - originals are kept
 - nothing changes without approval
 - no action is quietly swapped for another
@@ -115,12 +115,14 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | `list [--json]` | Every installed skill, its state, and any structural problems |
 | `status` | Skills the-one-skill manages: `original`, `tuned`, `earlier`, `edited`, `retired`, or created |
 | `draft <skill>` | Saves the original (first time only) and opens a draft in the store |
-| `diff <skill>` | Shows the draft against the installed skill |
-| `apply <skill>` | Installs the draft (after you approve the diff) |
+| `diff <skill>` | Shows the draft against the installed skill (when you ask to see it) |
+| `apply <skill>` | Installs the draft (after your yes) |
 | `use <skill> original\|previous\|tuned\|<version>` | Reverts, steps back one version, or switches the improvement back in |
 | `history <skill>` | The kept versions: the original plus the last 5 applied |
+| `sets` / `undo-set <name> [--apply]` | Lists change sets; shows, then runs, the reverse steps of one (merges, vanilla, renames) |
 | `new <skill> [--from <folder>]` | Starts a skill that the-one-skill creates or installs, so it's tracked (going back to vanilla retires it) |
 | `retire <skill>` / `restore <skill>` | Moves a skill out of the skills folder and back, intact |
+| `--set <name> [--note "…"]` | On `apply`, `use`, `retire`, `restore`: records the step in a change set |
 
 Built-in safeguards:
 - It never overwrites hand edits.

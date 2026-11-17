@@ -16,6 +16,9 @@ How it works
 * Files named `readonly-*` are never changed by `apply`; only the user edits them by hand.
 * A skill folder that is a git checkout keeps its `.git` across every swap.
 * `retire` moves a skill into the store (Claude Code stops loading it); `restore` brings it back.
+* `--set <name>` on apply/use/retire/restore records the step in a change set (in the store, so it
+  needs no extra approval). `sets` lists them; `undo-set <name>` shows the reverse steps and
+  `undo-set <name> --apply` runs them, newest first, after checking nothing changed since.
 
 Commands
 --------
@@ -27,6 +30,9 @@ Commands
     python3 scripts/skillctl.py --root <skills_folder> use <skill> original|previous|tuned|<version>
     python3 scripts/skillctl.py --root <skills_folder> history <skill>
     python3 scripts/skillctl.py --root <skills_folder> new <skill> [--from <folder>]
+    python3 scripts/skillctl.py --root <skills_folder> sets
+    python3 scripts/skillctl.py --root <skills_folder> undo-set <name> [--apply]
+    (apply, use, retire, restore also take: --set <name> [--note "<why>"])
     python3 scripts/skillctl.py --root <skills_folder> retire <skill>
     python3 scripts/skillctl.py --root <skills_folder> restore <skill>
 """
@@ -49,6 +55,7 @@ SKIP = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
 READONLY_PREFIX = "readonly-"
 MAX_SKILL_LINES = 500
+SETS_FILE = "changesets.json"
 KEEP_APPLIED = 5  # applied versions kept per skill, besides the original
 NEW_SKILL_TEMPLATE = """---
 name: {name}
@@ -157,6 +164,7 @@ class SkillCtl:
         if not self.root.is_dir():
             raise Refused(f"Skills folder not found: {self.root}")
         self.store = Path(store).expanduser().resolve() if store else self.root.parent / STORE_DIRNAME
+        self.change_set: tuple[str, str | None] | None = None  # (name, note) while recording
         if self.store == self.root or self.root in self.store.parents:
             raise Refused("The store must be outside the skills folder, or Claude Code would load stored copies.")
 
@@ -345,7 +353,9 @@ class SkillCtl:
         # Safe to replace: a stored version, the folder the draft started from, or the draft itself
         # (if an earlier `apply` was interrupted, running it again finishes the job).
         allowed = self._known(st) | {st.get("draft_base"), digest}
+        before = folder_hash(self.installed(name))
         self._install(name, digest, allowed)
+        self._record("apply", name, before, digest)
         # Every apply is recorded, even one that matches the original, so `previous` always means
         # "the version before the last apply".
         hist = [h for h in st["history"] if h["digest"] != digest]
@@ -380,9 +390,11 @@ class SkillCtl:
             digest = matches[0] if len(matches) == 1 else None
         if not digest:
             raise Refused(f"`{name}` has no `{which}` version. `history {name}` lists the kept versions.")
-        if folder_hash(self.installed(name)) == digest:
+        before = folder_hash(self.installed(name))
+        if before == digest:
             return digest
         self._install(name, digest, self._known(st))
+        self._record("use", name, before, digest)
         return digest
 
     def _prune(self, name: str, st: dict[str, Any]) -> None:
@@ -390,6 +402,105 @@ class SkillCtl:
         for p in (self.sdir(name) / "versions").iterdir():
             if p.name not in keep:
                 shutil.rmtree(p, ignore_errors=True)
+
+    # ----- change sets -----
+    def _sets(self) -> dict[str, Any]:
+        p = self.store / SETS_FILE
+        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
+
+    def _save_sets(self, sets: dict[str, Any]) -> None:
+        self.store.mkdir(parents=True, exist_ok=True)
+        p = self.store / SETS_FILE
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(json.dumps(sets, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(p)
+
+    def begin_set(self, set_name: str, note: str | None = None) -> None:
+        """Record the following operations in change set `set_name` (created on first use)."""
+        if not NAME_RE.match(set_name):
+            raise Refused(f"`{set_name}` is not a valid change-set name (lowercase letters, numbers, hyphens).")
+        cs = self._sets().get(set_name)
+        if cs and cs.get("undone"):
+            raise Refused(f"Change set `{set_name}` was undone; start a new one with another name.")
+        self.change_set = (set_name, note)
+
+    def _record(self, op: str, skill: str, before: str | None, after: str | None) -> None:
+        if self.change_set is None:
+            return
+        set_name, note = self.change_set
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        sets = self._sets()
+        cs = sets.setdefault(set_name, {"note": note, "started": now, "steps": [], "undone": None})
+        if note and not cs.get("note"):
+            cs["note"] = note
+        cs["steps"].append({"op": op, "skill": skill, "before": before, "after": after, "at": now})
+        self._save_sets(sets)
+
+    def sets(self) -> dict[str, Any]:
+        return self._sets()
+
+    def undo_plan(self, set_name: str) -> list[tuple[str, str, str | None]]:
+        """The reverse steps of a change set, newest first, as (action, skill, version).
+
+        Refuses, changing nothing, if any skill changed since the set or a needed version is gone."""
+        cs = self._sets().get(set_name)
+        if cs is None:
+            raise Refused(f"No change set `{set_name}`. `sets` lists them.")
+        if cs.get("undone"):
+            raise Refused(f"Change set `{set_name}` was already undone ({cs['undone']}).")
+        sim: dict[str, tuple[str | None, bool]] = {}  # skill -> (installed digest, has retired copy)
+
+        def now(skill: str) -> tuple[str | None, bool]:
+            if skill not in sim:
+                sim[skill] = (folder_hash(self.installed(skill)), (self.sdir(skill) / "retired").is_dir())
+            return sim[skill]
+
+        plan: list[tuple[str, str, str | None]] = []
+        for step in reversed(cs["steps"]):
+            skill, op = step["skill"], step["op"]
+            cur, retired = now(skill)
+            if op == "retire":
+                if cur is not None or not retired:
+                    raise Refused(f"`{skill}` is no longer retired as `{set_name}` left it; nothing was changed.")
+                plan.append(("restore", skill, None))
+                sim[skill] = (step["before"], False)
+                continue
+            if cur != step["after"]:
+                raise Refused(f"`{skill}` changed after `{set_name}`; undo or keep that change first. Nothing was changed.")
+            if op == "restore" or step["before"] is None:
+                if retired:
+                    raise Refused(f"`{skill}` already has a retired copy; nothing was changed.")
+                plan.append(("retire", skill, None))
+                sim[skill] = (None, True)
+            else:
+                st = self.state(skill)
+                if st is None or step["before"] not in self._known(st) or \
+                        folder_hash(self.version(skill, step["before"])) != step["before"]:
+                    raise Refused(f"The version of `{skill}` from before `{set_name}` is no longer kept; nothing was changed.")
+                plan.append(("install", skill, step["before"]))
+                sim[skill] = (step["before"], retired)
+        return plan
+
+    def undo_set(self, set_name: str) -> list[tuple[str, str, str | None]]:
+        plan = self.undo_plan(set_name)
+        recording, self.change_set = self.change_set, None
+        try:
+            for action, skill, digest in plan:
+                if action == "restore":
+                    self.restore(skill)
+                elif action == "retire":
+                    self.retire(skill)
+                else:
+                    assert digest
+                    st = self.state(skill)
+                    assert st is not None
+                    self._install(skill, digest, self._known(st))
+        finally:
+            self.change_set = recording
+        sets = self._sets()
+        sets[set_name]["undone"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self._save_sets(sets)
+        return plan
 
     def retire(self, name: str) -> Path:
         """Move a skill out of the skills folder into the store, intact. `restore` undoes it."""
@@ -406,6 +517,7 @@ class SkillCtl:
         shutil.move(str(installed), str(dest))  # moves everything, .git included
         if folder_hash(dest) != digest:
             raise Refused(f"The retired copy at {dest} does not match; check it before doing anything else.")
+        self._record("retire", name, digest, None)
         return dest
 
     def restore(self, name: str) -> None:
@@ -418,6 +530,7 @@ class SkillCtl:
         shutil.move(str(src), str(self.installed(name)))
         if folder_hash(self.installed(name)) != digest:
             raise Refused(f"The restored `{name}` does not match its retired copy; check it.")
+        self._record("restore", name, None, digest)
 
     def status(self) -> list[tuple[str, str]]:
         rows = []
@@ -487,17 +600,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("list").add_argument("--json", action="store_true", help="Machine-readable output")
-    for cmd in ("draft", "diff", "apply", "retire", "restore", "history"):
+    rec = argparse.ArgumentParser(add_help=False)
+    rec.add_argument("--set", dest="change_set", help="Record this step in a change set, e.g. merge-csv-skills")
+    rec.add_argument("--note", help="Why (stored with the change set)")
+    for cmd in ("draft", "diff", "history"):
         sub.add_parser(cmd).add_argument("skill")
+    for cmd in ("apply", "retire", "restore"):
+        sub.add_parser(cmd, parents=[rec]).add_argument("skill")
+    sub.add_parser("sets")
+    p = sub.add_parser("undo-set")
+    p.add_argument("name")
+    p.add_argument("--apply", action="store_true", help="Run the reverse steps (default: only show them)")
     p = sub.add_parser("new")
     p.add_argument("skill")
     p.add_argument("--from", dest="source", help="Folder with the new skill's files (default: a SKILL.md template)")
-    p = sub.add_parser("use")
+    p = sub.add_parser("use", parents=[rec])
     p.add_argument("skill")
     p.add_argument("version", help="original, previous, tuned, or a version id from `history`")
     a = ap.parse_args(argv)
     try:
         ctl = SkillCtl(a.root, a.store)
+        if getattr(a, "change_set", None):
+            ctl.begin_set(a.change_set, a.note)
         if a.cmd == "status":
             rows = ctl.status()
             print("\n".join(f"{n:32} {s}" for n, s in rows) if rows else "No skills changed by the-one-skill yet.")
@@ -512,6 +636,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"{r['name']:32} {r['state']:10} {desc}")
                 for issue in r["issues"]:
                     print(f"{'':32} ! {issue}")
+        elif a.cmd == "sets":
+            sets = ctl.sets()
+            if not sets:
+                print("No change sets recorded.")
+            for n, cs in sets.items():
+                state = f"undone {cs['undone']}" if cs.get("undone") else f"{len(cs['steps'])} step(s)"
+                print(f"{n:32} {cs['started']}  {state}  {cs.get('note') or ''}")
+                for st in cs["steps"]:
+                    print(f"{'':34}{st['op']:8} {st['skill']}")
+        elif a.cmd == "undo-set":
+            plan = ctl.undo_set(a.name) if a.apply else ctl.undo_plan(a.name)
+            for action, skill, digest in plan:
+                print(f"{action:8} {skill}" + (f" -> {digest}" if digest else ""))
+            print("Undone." if a.apply else f"Nothing changed yet. Run `undo-set {a.name} --apply` after approval.")
         elif a.cmd == "retire":
             print(f"Retired `{a.skill}` to {ctl.retire(a.skill)}. `restore {a.skill}` brings it back.")
         elif a.cmd == "restore":

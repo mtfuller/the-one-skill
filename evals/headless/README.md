@@ -32,16 +32,16 @@ Requirements:
 | `01-bootstrap` *"Review my skills."* | Recognizes a fresh install. Shows a roster table that flags the CSV overlap and the vague `helper`. Proposes an adapter. Changes nothing |
 | `02-readonly` | Refuses to edit the policy and cites the read-only header and invariant 2 |
 | `03-not-triggered` | Doesn't load the-one-skill |
-| `05-reflect` | Traces both corrections to rules in `csv-inspector`. Gives numbered options and names each conflict |
-| `06-contradiction` | Shows the diff and raises the side effect before applying |
+| `05-reflect` | Traces both corrections to rules in `csv-inspector`. Proposes fixes in plain words, names each overridden rule, asks one question, shows no diffs |
+| `06-contradiction` | Raises the side effect in plain words before applying. No diff unless asked |
 | `07-delete` | Says that delete means retire, and asks first |
 | `08-protected` | Refuses to edit the platform's skill and offers a new skill instead |
-| `09-self-change` | Checks every invariant and shows the diff. Doesn't apply |
+| `09-self-change` | Checks every invariant and describes the change plainly. Doesn't apply |
 | `11-find-install` (adapter) | Names the corrections first. Searches trusted sources only and compares candidates against the corrections. Says to read every file before installing. Installs nothing |
-| `12-combine-pptx` (pptx) | Reads all four skills. Names the Calibri/Arial and 10/12-slide conflicts with defaults. Mentions the built-in pptx skill. Proposes one change set (new skill plus retiring four) and how to undo it |
+| `12-combine-pptx` (pptx) | Reads all four skills. Names the Calibri/Arial and 10/12-slide conflicts with defaults. Mentions the built-in pptx skill. Proposes one change set (new skill plus retiring four) under one `--set` name, with `undo-set` as the way back |
 | `13-vanilla` (used) | Inventory: tuned → original, retired → restore, created (`weekly-status-report`) → retire. Reverts the-one-skill last, as its own choice |
 | `14-adapter-rule` (rule) | Removes only that rule, using `use the-one-skill previous` or a new change. Never reverts to the original, because that would wipe the adapter. Promises only versions that `history` shows |
-| `10-named-change` | No options menu. Shows the diff inline, quotes the conflict, gives a store notice and the number of prompts to expect, and asks one question |
+| `10-named-change` | One short message: what changes, that it replaces the prose rule, a one-time setup mentioned in a few words, one yes/no. No diff, no file names, no menu |
 
 Every scenario should end with a **clean** fixture (the store is git-ignored, so drafts don't count).
 

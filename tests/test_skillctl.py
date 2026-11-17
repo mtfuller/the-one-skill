@@ -272,6 +272,65 @@ class SkillCtlTest(unittest.TestCase):
         with self.assertRaises(Refused):
             self.ctl.new("tf-guard")  # already tracked
 
+    def _add_skill(self, name: str) -> Path:
+        d = self.root / name
+        d.mkdir()
+        (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: x. Use when y.\n---\n# {name}\n")
+        return d
+
+    def test_change_set_undo_reverses_a_merge(self) -> None:
+        other = self._add_skill("csv-analyzer")
+        other_hash = folder_hash(other)
+        self.ctl.begin_set("merge-csv", "two CSV skills overlapped")
+        d = self.ctl.draft("csv-inspector")
+        (d / "SKILL.md").write_text(SKILL + "2. Stats from csv-analyzer.\n")
+        self.ctl.apply("csv-inspector")
+        self.ctl.retire("csv-analyzer")
+        new = self.ctl.new("csv-notes")
+        self.ctl.apply("csv-notes")
+        self.ctl.change_set = None
+        cs = self.ctl.sets()["merge-csv"]
+        self.assertEqual([st["op"] for st in cs["steps"]], ["apply", "retire", "apply"])
+        self.assertEqual(cs["note"], "two CSV skills overlapped")
+
+        plan = self.ctl.undo_plan("merge-csv")  # dry run: nothing changes
+        self.assertEqual([(a, k) for a, k, _ in plan],
+                         [("retire", "csv-notes"), ("restore", "csv-analyzer"), ("install", "csv-inspector")])
+        self.assertFalse(other.exists())
+
+        self.ctl.undo_set("merge-csv")
+        self.assertEqual(folder_hash(self.skill), self.original)
+        self.assertEqual(folder_hash(other), other_hash)
+        self.assertFalse((self.root / "csv-notes").exists())
+        self.assertTrue(self.ctl.sets()["merge-csv"]["undone"])
+        with self.assertRaises(Refused):
+            self.ctl.undo_set("merge-csv")  # only once
+        with self.assertRaises(Refused):
+            self.ctl.begin_set("merge-csv")  # an undone set is closed
+
+    def test_undo_refuses_when_a_skill_changed_since(self) -> None:
+        self.ctl.begin_set("tweak")
+        self.change("2. In the set.")
+        self.ctl.change_set = None
+        self.change("3. After the set.")
+        with self.assertRaises(Refused):
+            self.ctl.undo_plan("tweak")
+        self.assertIn("After the set", (self.skill / "SKILL.md").read_text())
+
+    def test_undo_handles_several_steps_on_one_skill(self) -> None:
+        self.ctl.begin_set("rework")
+        self.change("2. First.")
+        self.change("3. Second.")
+        self.ctl.retire("csv-inspector")
+        self.ctl.undo_set("rework")
+        self.assertEqual(folder_hash(self.skill), self.original)
+
+    def test_steps_outside_a_set_are_not_recorded(self) -> None:
+        self.change("2. Unrecorded.")
+        self.assertEqual(self.ctl.sets(), {})
+        with self.assertRaises(Refused):
+            self.ctl.begin_set("Bad Name")
+
     def test_cli(self) -> None:
         args = ["--root", str(self.root)]
         self.assertEqual(skillctl.main(args + ["draft", "csv-inspector"]), 0)
@@ -286,6 +345,12 @@ class SkillCtlTest(unittest.TestCase):
         self.assertEqual(skillctl.main(args + ["history", "csv-inspector"]), 0)
         self.assertEqual(skillctl.main(args + ["use", "csv-inspector", "previous"]), 1)  # only one applied version
         self.assertEqual(skillctl.main(args + ["new", "fresh-skill"]), 0)
+        self.assertEqual(skillctl.main(args + ["retire", "csv-inspector", "--set", "cli-set", "--note", "why"]), 0)
+        self.assertEqual(skillctl.main(args + ["sets"]), 0)
+        self.assertEqual(skillctl.main(args + ["undo-set", "cli-set"]), 0)  # dry run
+        self.assertFalse(self.skill.exists())
+        self.assertEqual(skillctl.main(args + ["undo-set", "cli-set", "--apply"]), 0)
+        self.assertTrue(self.skill.exists())
         self.assertEqual(skillctl.main(args + ["retire", "csv-inspector"]), 0)
         self.assertEqual(skillctl.main(args + ["restore", "csv-inspector"]), 0)
         self.assertEqual(folder_hash(self.skill), self.original)
