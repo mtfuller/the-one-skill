@@ -136,6 +136,72 @@ class SkillCtlTest(unittest.TestCase):
         self.ctl.use("csv-inspector", "original")
         self.assertEqual(folder_hash(self.skill), self.original)
 
+    def test_readonly_files_are_never_changed_by_apply(self) -> None:
+        (self.skill / "references" / "readonly-policy.md").write_text("Rule.\n")
+        d = self.ctl.draft("csv-inspector")
+        (d / "SKILL.md").write_text(SKILL + "2. Fine.\n")
+        (d / "references" / "readonly-policy.md").write_text("Weaker rule.\n")
+        with self.assertRaises(Refused):
+            self.ctl.apply("csv-inspector")
+        (d / "references" / "readonly-policy.md").unlink()
+        with self.assertRaises(Refused):  # deleting is a change too
+            self.ctl.apply("csv-inspector")
+        (d / "references" / "readonly-policy.md").write_text("Rule.\n")
+        self.ctl.apply("csv-inspector")  # other changes go through
+        self.assertIn("2. Fine.", (self.skill / "SKILL.md").read_text())
+        self.assertEqual((self.skill / "references" / "readonly-policy.md").read_text(), "Rule.\n")
+
+    def test_git_checkout_keeps_its_git_folder(self) -> None:
+        (self.skill / ".git").mkdir()
+        (self.skill / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+        self.change("2. Tuned.")
+        self.assertTrue((self.skill / ".git" / "HEAD").is_file())
+        self.ctl.use("csv-inspector", "original")
+        self.assertTrue((self.skill / ".git" / "HEAD").is_file())
+        self.assertEqual(folder_hash(self.skill), self.original)
+        self.assertFalse((self.ctl.version("csv-inspector", self.original) / ".git").exists())
+
+    def test_roster_lists_every_skill_with_problems(self) -> None:
+        bad = self.root / "Bad_Skill"
+        bad.mkdir()
+        (bad / "SKILL.md").write_text("---\nname: other\ndescription: Does things.\n---\n")
+        (self.root / "empty").mkdir()
+        folded = self.root / "folded"
+        folded.mkdir()
+        (folded / "SKILL.md").write_text("---\nname: folded\ndescription: >\n  Plan trips.\n  Use when asked.\n---\n")
+        self.change("2. Tuned.")
+        rows = {r["name"]: r for r in self.ctl.roster()}
+        self.assertEqual(rows["csv-inspector"]["state"], "tuned")
+        self.assertEqual(rows["csv-inspector"]["issues"], [])
+        self.assertEqual(rows["folded"]["description"], "Plan trips. Use when asked.")
+        self.assertEqual(rows["folded"]["issues"], [])
+        self.assertEqual(rows["Bad_Skill"]["state"], "unmanaged")
+        joined = " ".join(rows["Bad_Skill"]["issues"])
+        for issue in ("differs from folder", "invalid folder name", "when to use"):
+            self.assertIn(issue, joined)
+        self.assertIn("no SKILL.md", rows["empty"]["issues"])
+
+    def test_retire_and_restore_round_trip(self) -> None:
+        (self.skill / ".git").mkdir()
+        self.ctl.retire("csv-inspector")
+        self.assertFalse(self.skill.exists())
+        self.assertEqual(self.ctl.status(), [("csv-inspector", "retired")])
+        with self.assertRaises(Refused):
+            self.ctl.retire("csv-inspector")
+        self.ctl.restore("csv-inspector")
+        self.assertEqual(folder_hash(self.skill), self.original)
+        self.assertTrue((self.skill / ".git").is_dir())
+        with self.assertRaises(Refused):
+            self.ctl.restore("csv-inspector")
+
+    def test_restore_never_overwrites_a_skill(self) -> None:
+        self.ctl.retire("csv-inspector")
+        self.skill.mkdir()
+        (self.skill / "SKILL.md").write_text("new\n")
+        with self.assertRaises(Refused):
+            self.ctl.restore("csv-inspector")
+        self.assertEqual((self.skill / "SKILL.md").read_text(), "new\n")
+
     def test_cli(self) -> None:
         args = ["--root", str(self.root)]
         self.assertEqual(skillctl.main(args + ["draft", "csv-inspector"]), 0)
@@ -145,6 +211,11 @@ class SkillCtlTest(unittest.TestCase):
         self.assertEqual(skillctl.main(args + ["use", "csv-inspector", "original"]), 0)
         self.assertEqual(folder_hash(self.skill), self.original)
         self.assertEqual(skillctl.main(args + ["status"]), 0)
+        self.assertEqual(skillctl.main(args + ["list"]), 0)
+        self.assertEqual(skillctl.main(args + ["list", "--json"]), 0)
+        self.assertEqual(skillctl.main(args + ["retire", "csv-inspector"]), 0)
+        self.assertEqual(skillctl.main(args + ["restore", "csv-inspector"]), 0)
+        self.assertEqual(folder_hash(self.skill), self.original)
         self.assertEqual(skillctl.main(args + ["use", "missing-skill", "original"]), 1)
 
 
