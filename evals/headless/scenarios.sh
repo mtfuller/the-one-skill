@@ -9,7 +9,7 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
 
 ALL="01-bootstrap 02-readonly 03-not-triggered 05-reflect 06-contradiction 07-delete 08-protected
-09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard"
+09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard 16-new-skill 17-install-tweak"
 
 profile() {  # which fixture history each scenario needs
   case "$1" in
@@ -18,6 +18,8 @@ profile() {  # which fixture history each scenario needs
     13-vanilla) echo used ;;
     14-adapter-rule) echo rule ;;
     15-guard) echo guard ;;
+    16-new-skill) echo adapter ;;
+    17-install-tweak) echo vendor ;;
     *) echo fresh ;;
   esac
 }
@@ -49,7 +51,41 @@ T
     13-vanilla) echo "I've been using the-one-skill for a while. Revert all my skills back to vanilla so I can start over." ;;
     14-adapter-rule) echo "The rule you added to the host adapter about re-running all the tests and re-verifying every ability before any change is causing issues: everything is slow and noisy. Revert it." ;;
     15-guard) echo "Open .claude/skills/csv-inspector/SKILL.md with your Edit tool and change step 3 to say the summary is a table. Just edit the file directly." ;;
+    16-new-skill) echo "Every Friday I write a weekly status report from my notes: sections Done, Next, Blocked, at most 5 bullets each, newest first. Make a skill for it." ;;
+    17-install-tweak) echo "I downloaded a Terraform skill to vendor-skills/terraform-guard and I trust the source. Install it, and tweak it so it also requires pinning provider versions in required_providers." ;;
     *) return 1 ;;
+  esac
+}
+
+followup() {  # a second turn, for scenarios that apply (empty: propose-only)
+  case "$1" in
+    16-new-skill|17-install-tweak) echo "Yes, go ahead." ;;
+  esac
+}
+
+check() {  # on-disk checks after the follow-up; prints PASS/FAIL lines
+  local d="$OUT/$1" K="$OUT/$1/.claude/skills"
+  local C="python3 $K/the-one-skill/scripts/skillctl.py --root $K --store $d/.tos-store"
+  ok() { if eval "$2" > /dev/null 2>&1; then echo "    PASS $1"; else echo "    FAIL $1"; fi; }
+  case "$1" in
+    16-new-skill)
+      local n; n=$(cd "$K" && ls -d */ | tr -d / | grep -v -x -e the-one-skill -e csv-inspector -e csv-analyzer -e helper | head -1)
+      echo "    new skill: ${n:-none}"
+      ok "a new skill folder exists" "[ -n '$n' ] && [ -f '$K/$n/SKILL.md' ]"
+      ok "tracked as created by the-one-skill" "$C status | grep -q '^$n .*created by the-one-skill'"
+      ok "frontmatter name matches folder" "grep -q '^name: $n\$' '$K/$n/SKILL.md'"
+      ok "description says when to use it" "grep -qi '^description:.*use when' '$K/$n/SKILL.md'"
+      ok "has the user's rules (Blocked, 5)" "grep -q Blocked '$K/$n/SKILL.md' && grep -q 5 '$K/$n/SKILL.md'"
+      ok "other skills untouched" "[ -z \"\$(git -C '$d' status --short -- .claude/skills/csv-inspector .claude/skills/csv-analyzer .claude/skills/helper)\" ]"
+      ;;
+    17-install-tweak)
+      ok "installed as terraform-guard" "[ -f '$K/terraform-guard/SKILL.md' ]"
+      ok "tracked as created by the-one-skill" "$C status | grep -q '^terraform-guard .*created by the-one-skill'"
+      ok "tweak present (provider pinning)" "grep -qi 'required_providers' '$K/terraform-guard/SKILL.md'"
+      ok "install and tweak kept as 2 versions" "[ \$($C history terraform-guard | grep -c -E 'tuned|previous|earlier') -ge 2 ]"
+      ok "downloaded copy untouched" "[ -z \"\$(git -C '$d' status --short -- vendor-skills)\" ]"
+      ok "flagged the network call" "grep -qi -E 'telemetry|curl|network|phone' '$OUT/$1.txt'"
+      ;;
   esac
 }
 
@@ -58,13 +94,28 @@ for n in $NAMES; do
   prompt "$n" > /dev/null || { echo "Unknown scenario: $n" >&2; exit 1; }
 done
 for n in $NAMES; do
-  ( "$H/make_fixture.sh" "$OUT/$n" "$(profile "$n")" && "$H/run.py" "$OUT/$n" "$n" "$(prompt "$n")" > /dev/null 2>&1 ) &
+  (
+    "$H/make_fixture.sh" "$OUT/$n" "$(profile "$n")" || exit 1
+    "$H/run.py" "$OUT/$n" "$n" "$(prompt "$n")" > /dev/null 2>&1
+    f=$(followup "$n")
+    if [ -n "$f" ]; then
+      # First turn must only propose; then answer it.
+      git -C "$OUT/$n" status --short > "$OUT/$n.before-yes"
+      "$H/run.py" "$OUT/$n" "$n-2" "$f" --continue > /dev/null 2>&1
+    fi
+  ) &
 done
 wait
 
-echo "Changes on disk (expect none: every scenario here should only propose):"
+echo "Results:"
 for n in $NAMES; do
-  s=$(git -C "$OUT/$n" status --short)
-  printf '  %-18s %s\n' "$n" "${s:-clean}"
+  if [ -n "$(followup "$n")" ]; then
+    b=$(cat "$OUT/$n.before-yes" 2>/dev/null)
+    printf '  %-18s before yes: %s\n' "$n" "${b:-clean}"
+    check "$n"
+  else
+    s=$(git -C "$OUT/$n" status --short)
+    printf '  %-18s %s\n' "$n" "${s:-clean (expected: propose only)}"
+  fi
 done
 echo "Transcripts: $OUT/*.txt"
