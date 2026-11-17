@@ -433,14 +433,12 @@ def verify_repository() -> int:
 
 
 def self_check() -> int:
-    """Print what the-one-skill can run here. Exit 0 only if every script is present."""
-    scripts = ("lint_skills.py", "skillctl.py", "export_diff.py")
-    missing = [name for name in scripts if not (REPO_ROOT / "scripts" / name).is_file()]
-    print(f"python {sys.version.split()[0]}; the-one-skill at {REPO_ROOT}")
-    if missing:
-        print(f"SELF-CHECK FAIL: missing scripts: {', '.join(missing)}")
-        return 1
-    print("SELF-CHECK OK: code execution and the-one-skill scripts are available.")
+    """If this runs at all, code execution works. Report which the-one-skill scripts sit beside it."""
+    scripts_dir = Path(__file__).resolve().parent
+    print(f"SELF-CHECK OK: python {sys.version.split()[0]} can run the-one-skill scripts from {scripts_dir}")
+    for name in ("lint_skills.py", "export_diff.py", "skillctl.py"):
+        state = "present" if (scripts_dir / name).is_file() else "missing"
+        print(f"  {name}: {state}")
     return 0
 
 

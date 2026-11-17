@@ -8,22 +8,24 @@ Gemini Web has two modes, and only one can run code:
 
 | | **Chat** | **Task** |
 | :--- | :--- | :--- |
-| Code execution | No | Yes |
-| the-one-skill's `scripts/` reachable | No | Yes (tested) |
-| Installed skills readable as files | No | Yes (tested) |
+| Code execution (Python, stdlib and pre-installed packages, no internet) | No | Yes |
+| Skill files inside the sandbox | No | No: Gemini reads a skill's files through its skill tools and can copy them into the sandbox |
+| Changes to sandbox copies saved back to the skill | No | No |
 
-At the start of every the-one-skill action, run `python3 scripts/lint_skills.py --self-check`. If it cannot run, you are in Chat mode: say so, and say which checks will be skipped.
+**Staging the-one-skill's scripts (Task mode).** Skill files are not mounted in the sandbox, so before any script runs, read `scripts/lint_skills.py` and `scripts/export_diff.py` from `the-one-skill` through the skill tools, write them unchanged to `/tmp/the-one-skill/scripts/`, and run `python3 /tmp/the-one-skill/scripts/lint_skills.py --self-check`. Do the same for any skill being linted: copy its files to `/tmp/skills/<name>/` first. Re-stage in each new session; sandbox files do not persist.
+
+If no code can run at all, you are in Chat mode: say so, and say which checks will be skipped.
 
 | Operation | Chat mode | Task mode |
 | :--- | :--- | :--- |
-| Refine / revert / reapply / retire / merge (§4) | Allowed: Gemini skill tools plus a full diff shown to the user, with a manual lint check (`references/evolve.md` §3) | Allowed, with the automated lint: copy the draft into `/tmp/draft/<name>/` and run `lint_skills.py` on it |
+| Refine / revert / reapply / retire / merge (§4) | Allowed: Gemini skill tools plus a full diff shown to the user, with a manual lint check (`references/evolve.md` §3) | Allowed, with the automated lint: write the draft to `/tmp/draft/<name>/` and run the staged `lint_skills.py` on it |
 | Install a skill from outside (Discover) | **Stop** and ask the user to switch to Task mode (`references/discover.md` step 0) | Allowed with the full security and lint gate |
-| Status / overlap audit | Read skill descriptions only | Run `lint_skills.py` on the installed skill files for token counts and overlaps |
+| Status / overlap audit | Read skill descriptions only | Copy installed skills to `/tmp/skills/` and run the staged `lint_skills.py` on them for token counts and overlaps |
 | Export | Not available | Allowed |
 
-## 2. Why Not `skillctl.py` in Task Mode?
+## 2. Why Not `skillctl.py`?
 
-Task mode can read installed skills as files, but it is **not yet verified** that (a) writing to those files changes the skill on the Skills page, or (b) anything written outside them (the store) survives to the next session. Until both are tested, use the Gemini swap rules below even in Task mode: the disabled original is the only backup that is known to persist.
+Gemini skills live in Gemini's own storage and are reached only through its skill tools. The sandbox only ever holds copies: editing them does not change a skill, and they disappear when the session ends. `skillctl.py` manages folders on disk, so it cannot manage Gemini skills in either mode. Use the swap rules in §4; the disabled original is the only backup that persists.
 
 ## 3. What Gemini's Skill Tools Can and Cannot Do (Tested)
 
@@ -66,8 +68,8 @@ There is no manifest file on Gemini Web. Keep a roster in **Gemini Memory**, e.g
 - The code execution environment only runs Python and has no outbound internet access. Never invoke `pip install`, `curl`, `wget`, or non-Python runtimes.
 - **Discover (Task mode only):** use Gemini's built-in browsing to read the trusted repositories, write candidate files into the sandbox (`/tmp/staged/<skill-name>/`), and run:
   ```bash
-  python3 scripts/lint_skills.py --check-source-url <candidate_url>
-  python3 scripts/lint_skills.py /tmp/staged/<skill-name>
+  python3 /tmp/the-one-skill/scripts/lint_skills.py --check-source-url <candidate_url>
+  python3 /tmp/the-one-skill/scripts/lint_skills.py /tmp/staged/<skill-name>
   ```
   Only after both pass and the user approves, create the skill through Gemini's skill tools.
 - Sandbox files do not persist between sessions; never rely on them as a backup.

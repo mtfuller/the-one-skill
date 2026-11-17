@@ -27,7 +27,7 @@ Manage your skill library with standard Agent Skills folders. Load **only the si
 - A disabled version is **out of the host's skills folder** (Claude Code / Codex) or **disabled in the host** (Gemini Web), never just marked.
 - Every change needs a shown diff and the user's approval. If an operation is not possible, stop and ask; never substitute another action.
 - Claude Code / Codex: always use `python3 scripts/skillctl.py --root <skills_root> ...`; never move or edit skill folders by hand.
-- **Check before running scripts:** run `python3 scripts/lint_skills.py --self-check` once per session before any script. If it cannot run (e.g. Gemini Web Chat mode), follow the no-code-execution rules in the reference you loaded and tell the user which checks were skipped.
+- **Check before running scripts:** run `python3 scripts/lint_skills.py --self-check` once per session before any script (on Gemini Web, copy the scripts into the sandbox first; see its adapter). If no code can run (e.g. Gemini Web Chat mode), follow the no-code-execution rules in the reference you loaded and tell the user which checks were skipped.
 
 ## Three Pillars (Load 1 Reference on Demand)
 
