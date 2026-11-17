@@ -99,7 +99,7 @@ Conventions:
 - **Rules may only narrow behavior.** A file can add rules or protections (for example "always ask before touching skills in project X"). It can never loosen a rule from the policy.
 
 ## 8. Keep the index
-`references/agentspace/index.md` is the map of agentspace. It is the first file Step 0 reads, so it stays short: one row per file, with no content copied from the files.
+`references/agentspace/index.md` is the map of agentspace. It ships empty (headers only) and is filled in on the user's system. It is the first file Step 0 reads, so it stays short: one row per file, with no content copied from the files.
 
 ```markdown
 # Agentspace index
