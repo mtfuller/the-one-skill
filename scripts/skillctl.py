@@ -6,8 +6,11 @@ How it works
 * The first `draft` of a skill saves an exact copy of the installed skill as its original, in a
   store next to the skills folder (e.g. ~/.claude/the-one-skill-store/). It is never modified.
 * You edit the draft (also in the store, so Claude Code never loads it), then `apply` installs it.
-  The store keeps the original and the latest applied version ("tuned"); nothing else.
-* `use <skill> original` puts the original back; `use <skill> tuned` swaps the change back in.
+  The store keeps the original and the last few applied versions (the newest is "tuned").
+* `use <skill> original` puts the original back, `use <skill> previous` steps back one applied
+  version, `use <skill> tuned` swaps the newest change back in, and `history <skill>` lists them.
+* `new <skill>` starts a skill the-one-skill creates. Its "original" is "not installed", so
+  `status` lists it and going back to vanilla means retiring it.
 * A skill folder is only ever replaced when its contents match a copy in the store, so edits
   made by hand are never lost: `draft` starts from them and `apply` keeps them.
 * Files named `readonly-*` are never changed by `apply`; only the user edits them by hand.
@@ -21,7 +24,9 @@ Commands
     python3 scripts/skillctl.py --root <skills_folder> draft <skill>
     python3 scripts/skillctl.py --root <skills_folder> diff <skill>
     python3 scripts/skillctl.py --root <skills_folder> apply <skill>
-    python3 scripts/skillctl.py --root <skills_folder> use <skill> original|tuned
+    python3 scripts/skillctl.py --root <skills_folder> use <skill> original|previous|tuned|<version>
+    python3 scripts/skillctl.py --root <skills_folder> history <skill>
+    python3 scripts/skillctl.py --root <skills_folder> new <skill> [--from <folder>]
     python3 scripts/skillctl.py --root <skills_folder> retire <skill>
     python3 scripts/skillctl.py --root <skills_folder> restore <skill>
 """
@@ -44,6 +49,17 @@ SKIP = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
 READONLY_PREFIX = "readonly-"
 MAX_SKILL_LINES = 500
+KEEP_APPLIED = 5  # applied versions kept per skill, besides the original
+NEW_SKILL_TEMPLATE = """---
+name: {name}
+description: <what it does>. Use when <situation>. Do not use when <situation>.
+---
+
+# {name}
+
+## Steps
+1. ...
+"""
 
 
 class Refused(RuntimeError):
@@ -156,7 +172,19 @@ class SkillCtl:
 
     def state(self, name: str) -> dict[str, Any] | None:
         p = self.sdir(name) / "state.json"
-        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+        if not p.is_file():
+            return None
+        st = json.loads(p.read_text(encoding="utf-8"))
+        if "history" not in st:  # state written before version history existed
+            st["history"] = [{"digest": st["tuned"], "applied": None}] if st.get("tuned") else []
+        return st
+
+    @staticmethod
+    def _digests(st: dict[str, Any]) -> list[str]:
+        return [h["digest"] for h in st.get("history", [])]
+
+    def _known(self, st: dict[str, Any]) -> set[str | None]:
+        return {st.get("original"), *self._digests(st)}
 
     def _save_state(self, name: str, st: dict[str, Any]) -> None:
         p = self.sdir(name) / "state.json"
@@ -184,7 +212,7 @@ class SkillCtl:
         return digest
 
     def which(self, name: str, st: dict[str, Any]) -> str:
-        """Which version is installed: original, tuned, missing, or edited (by hand)."""
+        """Which version is installed: original, tuned, earlier (an older applied version), missing, or edited."""
         digest = folder_hash(self.installed(name))
         if digest is None:
             return "missing"
@@ -192,6 +220,8 @@ class SkillCtl:
             return "original"
         if digest == st.get("tuned"):
             return "tuned"
+        if digest in self._digests(st):
+            return "earlier"
         return "edited"
 
     def _install(self, name: str, digest: str, allowed: set[str | None]) -> None:
@@ -239,6 +269,48 @@ class SkillCtl:
         self._save_state(name, st)
         return d
 
+    def new(self, name: str, source: str | Path | None = None) -> Path:
+        """Start a new skill created by the-one-skill: a draft in the store, installed by `apply`."""
+        if not NAME_RE.match(name):
+            raise Refused(f"`{name}` is not a valid skill name (lowercase letters, numbers, hyphens).")
+        if self.installed(name).exists() or self.installed(name).is_symlink():
+            raise Refused(f"`{name}` already exists in {self.root}; choose another name or `draft` it.")
+        if self.sdir(name).exists():
+            raise Refused(f"The store already has `{name}` ({self.sdir(name)}); `restore` it or choose another name.")
+        self.sdir(name).mkdir(parents=True)
+        d = self.sdir(name) / "draft"
+        try:
+            if source is not None:
+                src = Path(source).expanduser().resolve()
+                if not (src / "SKILL.md").is_file():
+                    raise Refused(f"{src} has no SKILL.md.")
+                self._copy(src, d)
+            else:
+                d.mkdir()
+                (d / "SKILL.md").write_text(NEW_SKILL_TEMPLATE.format(name=name), encoding="utf-8")
+        except Exception:
+            shutil.rmtree(self.sdir(name), ignore_errors=True)
+            raise
+        self._save_state(name, {"name": name, "original": None, "created": True, "tuned": None, "history": []})
+        return d
+
+    def history(self, name: str) -> list[dict[str, Any]]:
+        """Versions that `use` can install, oldest first, with which one is installed."""
+        st = self.state(name)
+        if st is None:
+            raise Refused(f"`{name}` has not been changed by the-one-skill.")
+        current = folder_hash(self.installed(name))
+        rows = [{"label": "original", "version": st["original"] or "(not installed: created by the-one-skill)",
+                 "applied": None, "installed": current is not None and current == st["original"]}]
+        digests = self._digests(st)
+        for i, h in enumerate(st["history"]):
+            label = "tuned" if i == len(digests) - 1 else ("previous" if i == len(digests) - 2 else "earlier")
+            if h["digest"] == st["original"]:
+                label += " (= original)"
+            rows.append({"label": label, "version": h["digest"], "applied": h["applied"],
+                         "installed": current == h["digest"]})
+        return rows
+
     def diff(self, name: str) -> str:
         st = self.state(name)
         if st is None:
@@ -247,7 +319,8 @@ class SkillCtl:
         if d.is_dir():
             return folder_diff(self.installed(name), d, "installed", "draft")
         if st.get("tuned"):
-            return folder_diff(self.version(name, st["original"]), self.version(name, st["tuned"]), "original", "tuned")
+            old = self.version(name, st["original"]) if st["original"] else self.sdir(name) / "(none)"
+            return folder_diff(old, self.version(name, st["tuned"]), "original", "tuned")
         return ""
 
     def apply(self, name: str) -> list[str]:
@@ -271,9 +344,14 @@ class SkillCtl:
         digest = self._store_version(name, d)
         # Safe to replace: a stored version, the folder the draft started from, or the draft itself
         # (if an earlier `apply` was interrupted, running it again finishes the job).
-        allowed = {st["original"], st.get("tuned"), st.get("draft_base"), digest}
+        allowed = self._known(st) | {st.get("draft_base"), digest}
         self._install(name, digest, allowed)
-        st["tuned"] = digest if digest != st["original"] else st.get("tuned")
+        # Every apply is recorded, even one that matches the original, so `previous` always means
+        # "the version before the last apply".
+        hist = [h for h in st["history"] if h["digest"] != digest]
+        hist.append({"digest": digest, "applied": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
+        st["history"] = hist[-KEEP_APPLIED:]
+        st["tuned"] = digest
         st.pop("draft_base", None)
         self._save_state(name, st)
         shutil.rmtree(d, ignore_errors=True)
@@ -283,19 +361,32 @@ class SkillCtl:
             warnings.append(f"SKILL.md is over {MAX_SKILL_LINES} lines; consider moving detail into references/.")
         return warnings
 
-    def use(self, name: str, which: str) -> None:
+    def use(self, name: str, which: str) -> str:
+        """Install a kept version: original, previous, tuned, or a version id (or its first 6+ characters)."""
         st = self.state(name)
         if st is None:
             raise Refused(f"`{name}` has not been changed by the-one-skill.")
-        digest = st.get(which)
+        digests = self._digests(st)
+        if which == "original":
+            if st["original"] is None:
+                raise Refused(f"`{name}` was created by the-one-skill, so it has no original. `retire {name}` removes it.")
+            digest = st["original"]
+        elif which == "tuned":
+            digest = st.get("tuned")
+        elif which == "previous":
+            digest = digests[-2] if len(digests) >= 2 else None
+        else:
+            matches = [d for d in digests if len(which) >= 6 and d.startswith(which)]
+            digest = matches[0] if len(matches) == 1 else None
         if not digest:
-            raise Refused(f"`{name}` has no {which} version.")
-        if self.which(name, st) == which:
-            return
-        self._install(name, digest, {st["original"], st.get("tuned")})
+            raise Refused(f"`{name}` has no `{which}` version. `history {name}` lists the kept versions.")
+        if folder_hash(self.installed(name)) == digest:
+            return digest
+        self._install(name, digest, self._known(st))
+        return digest
 
     def _prune(self, name: str, st: dict[str, Any]) -> None:
-        keep = {st["original"], st.get("tuned")}
+        keep = self._known(st)
         for p in (self.sdir(name) / "versions").iterdir():
             if p.name not in keep:
                 shutil.rmtree(p, ignore_errors=True)
@@ -342,6 +433,8 @@ class SkillCtl:
                 notes.append(installed)
                 if installed == "original" and st.get("tuned"):
                     notes.append("(tuned version saved)")
+                if st.get("created"):
+                    notes.append("(created by the-one-skill)")
                 if (sd / "draft").is_dir():
                     notes.append("(draft in progress)")
             if retired:
@@ -394,11 +487,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
     sub.add_parser("list").add_argument("--json", action="store_true", help="Machine-readable output")
-    for cmd in ("draft", "diff", "apply", "retire", "restore"):
+    for cmd in ("draft", "diff", "apply", "retire", "restore", "history"):
         sub.add_parser(cmd).add_argument("skill")
+    p = sub.add_parser("new")
+    p.add_argument("skill")
+    p.add_argument("--from", dest="source", help="Folder with the new skill's files (default: a SKILL.md template)")
     p = sub.add_parser("use")
     p.add_argument("skill")
-    p.add_argument("version", choices=["original", "tuned"])
+    p.add_argument("version", help="original, previous, tuned, or a version id from `history`")
     a = ap.parse_args(argv)
     try:
         ctl = SkillCtl(a.root, a.store)
@@ -428,10 +524,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif a.cmd == "apply":
             for w in ctl.apply(a.skill):
                 print(f"WARNING: {w}")
-            print(f"Applied. `use {a.skill} original` puts the original back.")
+            print(f"Applied. `use {a.skill} previous` steps back one version; `history {a.skill}` lists them all.")
         elif a.cmd == "use":
-            ctl.use(a.skill, a.version)
-            print(f"`{a.skill}`: {a.version} version installed.")
+            digest = ctl.use(a.skill, a.version)
+            print(f"`{a.skill}`: {a.version} version installed ({digest}).")
+        elif a.cmd == "new":
+            print(f"New skill draft: {ctl.new(a.skill, a.source)}\nWrite its files there, show `diff`, and `apply` after approval.")
+        elif a.cmd == "history":
+            for r in ctl.history(a.skill):
+                mark = "*" if r["installed"] else " "
+                print(f"{mark} {r['label']:22} {r['version']:18} {r['applied'] or ''}")
     except Refused as e:
         print(f"REFUSED: {e}", file=sys.stderr)
         return 1
