@@ -1,67 +1,40 @@
-# `the-one-skill`
+# the-one-skill
 
-> **One skill to discover, evolve, and tailor them all.**
->
-> License: MIT · Targets: **Gemini Web**, **Claude Code**, **OpenAI Codex**
+> Reflect on how your skills performed, improve them, and never lose the original.
 
-`the-one-skill` is a personal-first, open-source skill manager and control plane that runs inside your existing AI hosts without requiring a custom runtime or background daemon. Using standard Agent Skills files (`SKILL.md`, `references/`, `scripts/`, `artifacts/`), it helps you **discover**, **configure**, and **evolve** your skill library safely over time.
+`the-one-skill` is an Agent Skill for **Claude Code** and **Gemini**. After a session it looks at which skills were used and what you had to correct, proposes specific fixes, checks them against each skill's existing rules, and applies only what you approve. The first change to any skill keeps the original untouched, so you can always say *"revert"*.
 
----
+## Install
+- **Claude Code:** clone into `~/.claude/skills/the-one-skill` (personal) or `.claude/skills/the-one-skill` (project).
+- **Gemini:** upload the folder as a custom skill.
 
-## Core Design Principles
+## Use it
+Just ask:
+- *"Reflect on this session."* / *"That skill got the format wrong again, fix it."*
+- *"Make a skill for this; I do it every week."*
+- *"Put that skill back how it was."*
 
-1. **Three Orthogonal Pillars (`Discover`, `Configure`, `Evolve`):** Every control-plane action maps cleanly to a single reference file so the agent never loads redundant instructions:
-   - **Discover (`references/discover.md`):** Search verified official catalogs (`anthropics/skills`, `openai/skills`, `google-gemini/gemini-skills`) or scaffold a custom skill from the canonical template.
-   - **Configure (`references/configure.md`):** Check skill status, lock skills, revert or reapply refinements, retire skills, and export sanitized PR patches (`export`).
-   - **Evolve (`references/evolve.md`):** Run a **Fast-Path Single-Skill Refinement** on active-skill friction or a **Full-Roster Orthogonality Audit** when 2+ skills collide, always diff-first with user approval.
-2. **Originals Are Never Edited (Swap Model):** The first refinement of a skill saves the original untouched and installs **one working copy** in its place; later refinements edit that copy. A disabled version lives outside the host's skills folder (Claude Code / Codex) or is disabled in the host (Gemini Web), so the number of installed skills never grows. **Revert** puts the original back byte-for-byte; **reapply** swaps the working copy back in; **undo** steps back one refinement. Swaps refuse to run if a skill was edited by hand outside `the-one-skill`, and locked skills are never touched. Every change requires user diff approval.
-3. **Progressive Disclosure & 800-Token Discipline:** Every `SKILL.md` is strictly capped at **800 tokens**, and every YAML frontmatter `description:` explicitly declares both `Use when ...` and `Do not use when ...` routing triggers.
-4. **Pure Python 3 Standard Library Scripts:** Because Gemini Web only executes Python in its sandbox (and has no outbound VM internet), all scripts in `scripts/` use **pure Python 3 standard library** with zero external config dependencies.
-
----
-
-## Quickstart
-
-### 1. Install `the-one-skill`
-- **Gemini Web:** Upload the `the-one-skill` folder as a custom skill. Uploaded skills persist across sessions and can be updated in place.
-- **Claude Code:** Clone into `.claude/skills/the-one-skill` (workspace) or `~/.claude/skills/the-one-skill` (global).
-- **OpenAI Codex:** Clone into `.codex/skills/the-one-skill` (workspace) or `~/.codex/skills/the-one-skill` (global).
-
-### 2. Talk Naturally (No Rigid `/` Commands Required)
-`the-one-skill` infers intent from conversation context:
-
-| Pillar | Natural Prompt or Signal | Reference Loaded |
+## How changes stay reversible
+| | Claude Code | Gemini |
 | :--- | :--- | :--- |
-| **Discover** | Repeatable unmatched task or *"find/create a skill for CSVs"* | `references/discover.md` |
-| **Configure** | *"Show my skills"*, *"never touch skill X"*, *"put that skill back how it was"*, or *"export a PR diff"* | `references/configure.md` |
-| **Evolve (§1 Fast-Path)** | Correction, retry loop, or error in 1 active skill (reads **only** that active skill) | `references/evolve.md` (§1 & §3) |
-| **Evolve (§2 Full-Roster)** | 2+ skills fire together, 3+ skill chain, or *"audit my skill overlaps"* | `references/evolve.md` (§2 & §3) |
+| Original | Exact copy saved in `the-one-skill-store/` next to the skills folder, never modified | The original skill, disabled, never edited |
+| Improved version | Installed in place of the original (one copy) | A separate `<name>-tuned` skill, enabled |
+| Revert | `skillctl.py use <skill> original` | Disable `-tuned`, enable the original |
+| Hand edits | Never overwritten: commands refuse, and `draft` keeps them | n/a |
 
----
+Every change is shown as a diff and needs your yes.
 
-## Deterministic CLI Utilities (Pure Python 3 Stdlib)
+## Layout
+```
+SKILL.md               the workflow (reflect → evaluate → propose → check → apply → revert)
+vendors/claude-code.md how changes are applied on Claude Code
+vendors/gemini.md      how changes are applied on Gemini
+scripts/skillctl.py    Claude Code helper: status, draft, diff, apply, use (Python 3 stdlib)
+tests/                 unit tests for skillctl.py
+evals/checklist.md     manual checks to run in each host before a release
+```
 
-All scripts are self-contained and run with zero third-party packages:
-
+## Develop
 ```bash
-# 0. Manage skills with the swap model (Claude Code / Codex; see vendors/ for --root):
-python3 scripts/skillctl.py --root ~/.claude/skills status
-python3 scripts/skillctl.py --root ~/.claude/skills refine-start csv-inspector   # edit the printed draft
-python3 scripts/skillctl.py --root ~/.claude/skills diff csv-inspector
-python3 scripts/skillctl.py --root ~/.claude/skills commit csv-inspector --reason "handle ; delimiters"
-python3 scripts/skillctl.py --root ~/.claude/skills revert csv-inspector          # back to the original
-python3 scripts/skillctl.py --root ~/.claude/skills reapply csv-inspector         # swap the working copy back
-
-# 1. Lint skills for the 800-token cap, explicit frontmatter Use when / Do not use when,
-#    trigger keyword overlaps, and built-in security traps (SEC-001..SEC-005):
-python3 scripts/lint_skills.py --verify-repo
-
-# 2. Verify whether a candidate skill URL comes from a trusted upstream source:
-python3 scripts/lint_skills.py --check-source-url https://github.com/anthropics/skills/tree/main/skills/pdf
-
-# 3. Export a sanitized unified diff and PR summary against upstream:
-python3 scripts/export_diff.py <upstream_dir> <local_dir> artifacts/the-one-skill-changes.patch
-
-# 4. Run the full deterministic unit & swap round-trip test suite:
-python3 scripts/test_lifecycle.py
+python3 -m unittest discover tests
 ```
