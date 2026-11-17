@@ -2,7 +2,7 @@
 
 > **This file is read-only.** the-one-skill never creates, edits, moves, renames, or deletes it, in any version and on any host, including inside a `-tuned` twin or a draft. Only the user changes it, by hand. If an approved change would need it edited, stop and tell the user.
 
-This file defines how the-one-skill may change itself and what its adapters must guarantee. Everything else in the skill can evolve. These rules cannot.
+This file defines how the-one-skill may change itself and what its agentspace files must guarantee. Everything else in the skill can evolve. These rules cannot.
 
 ## 1. What the skill is made of, and who may change it
 
@@ -10,13 +10,13 @@ This file defines how the-one-skill may change itself and what its adapters must
 | :--- | :--- | :--- | :--- |
 | Read-only | `references/readonly-*.md` | The user only, by hand | Not by the-one-skill |
 | Core | `SKILL.md`, other `references/*.md`, `scripts/`, `tests/` | the-one-skill, with approval | Self-change procedure (§3) |
-| Agentspace | `references/agentspace/*.md` | the-one-skill, with approval | `references/building-adapters.md`, saved through §3 |
+| Agentspace | Everything under `references/agentspace/`: host adapters plus any other files the agent creates to fit the user's needs | the-one-skill, with approval | `references/building-adapters.md`, saved through §3 |
 
 The same rule applies to any file named `readonly-*` in **any** skill: the-one-skill never modifies it.
 
 ## 2. Invariants
 
-Every version of the-one-skill, and every adapter, keeps all of these. A change that removes or weakens one is refused even if the user asks for it. The user may make that change by hand.
+Every version of the-one-skill, and every agentspace file, keeps all of these. An agentspace file may add rules or narrow what the skill does. It may never loosen an invariant. A change that removes or weakens one is refused even if the user asks for it. The user may make that change by hand.
 
 1. **Originals are kept.** The first change to any skill keeps its original. The original is never edited and can always be restored. If a host cannot do this without help (for example, the user has to download a backup), the user is told before the first change and confirms.
 2. **Nothing changes without approval.** Every create, edit, enable, disable, retire, and restore is shown first, as a full diff or the exact action, and waits for an explicit yes.
@@ -26,7 +26,7 @@ Every version of the-one-skill, and every adapter, keeps all of these. A change 
 6. **Protected things stay untouched.** Skills, connectors, and plugins that an adapter marks as protected, or that someone else manages (an organization, a plugin, the platform), are never modified. Propose a new skill instead.
 7. **Read-only stays read-only.** This file and every `readonly-*` file.
 8. **Probes are safe.** Learning what a host can do never puts a user's real skills at risk. Write abilities are tested only on a throwaway skill, and only with the user's permission.
-9. **Adapters hold no secrets.** They describe abilities and rules. They contain no tokens, passwords, or personal data.
+9. **Agentspace holds no secrets.** Its files describe abilities, rules, and preferences. They contain no tokens or passwords, and only the personal details the user explicitly asked to keep.
 10. **Nothing is deleted.** Retiring a skill is reversible. Permanent deletion is left to the user in the host's own settings.
 
 ## 3. Changing the-one-skill (self-change procedure)
@@ -43,5 +43,5 @@ Do this only when the user asks, or approves an option from a reflection. Never 
 
 ## 4. Good and bad self-changes
 
-- **Good:** clearer triggers, better reflection questions, new references for situations that keep coming up, sharper roster checks, and adapter fixes when a host behaves differently from what was recorded.
+- **Good:** clearer triggers, better reflection questions, new references for situations that keep coming up, sharper roster checks, adapter fixes when a host behaves differently from what was recorded, and new agentspace files that capture how this user works.
 - **Never:** removing or loosening an approval step, widening what the skill may touch without the user, applying changes automatically, deleting user skills, or editing this file.

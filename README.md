@@ -25,9 +25,9 @@ The skill ships no vendor-specific guides. Instead:
 | :--- | :--- | :--- |
 | `references/readonly-self-improvement.md` | The policy: tiers, invariants, and how the skill may change itself | Only you, by hand |
 | `references/building-adapters.md` | The framework: how to probe a host, choose a strategy, and write an adapter | the-one-skill, with your approval |
-| `references/agentspace/<host>.md` | One adapter per host: where skills live, what the host can really do, how to apply and revert, and what is protected | Written by the-one-skill on your system, with your approval |
+| `references/agentspace/` | One adapter per host (where skills live, what the host can really do, how to apply and revert, what is protected), plus any other files the agent creates to fit how you work: preferences, roster notes, domain rules, connector notes | Written by the-one-skill on your system, with your approval |
 
-Adapters are git-ignored because they can name your private skills and connectors.
+Agentspace contents are git-ignored because they can name your private skills and connectors.
 
 ### Reversibility strategies
 | Strategy | When | Original | Revert |
@@ -45,7 +45,7 @@ SKILL.md                                  workflow: load adapter → reflect →
 references/readonly-self-improvement.md   read-only policy and invariants
 references/building-adapters.md           how to build a host adapter
 references/managing-roster.md             review, create, merge, split, rename, retire, restore
-references/agentspace/                    host adapters (generated per system, git-ignored)
+references/agentspace/                    adapters and user-specific notes (generated per system, git-ignored)
 scripts/skillctl.py                       strategy A helper: list, status, draft, diff, apply, use, retire, restore
 tests/                                    unit tests for skillctl.py
 evals/checklist.md                        manual checks to run on a host before a release

@@ -73,6 +73,9 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 
 ## Host notes
 - <traps seen here, reload behavior, limits>
+
+## Agentspace files
+- `<file>.md`: <purpose>. Read when <situation>.
 ```
 
 ## 5. Save it
@@ -80,6 +83,22 @@ Show the user the whole adapter and the strategy you chose, with reasons. After 
 
 ## 6. Keep it accurate
 When the host does something the adapter does not describe, propose a fix in your reflection. Give the evidence: what you ran and what came back. Update `Verified:` whenever you confirm a fact again.
+
+## 7. Shape agentspace to fit the user
+The adapter is the only file agentspace must have. Beyond it, you are free to organize `references/agentspace/` however best serves this user. Add files and subfolders when they keep knowledge that would otherwise be lost between sessions. For example:
+- `preferences.md`: how the user likes reflections, diffs, and options presented.
+- `roster-notes.md`: what each skill is for, which ones overlap on purpose, and which are being phased out.
+- `<domain>.md`: standing rules for a field the user works in, shared across several of their skills.
+- `connectors/<name>.md`: how a connector behaves here and which of its tools are safe to rely on.
+- `history.md`: a short log of applied changes and why, so later reflections can build on them.
+
+Conventions:
+- **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line, so Step 0 can tell them apart.
+- **Link every file from the adapter's `## Agentspace files` section**, with one line on when to read it. A file nobody links to is never read.
+- **Read on demand.** Step 0 loads only the adapter. Open other files when their "when to read" applies.
+- **Keep files small and single-purpose.** Merge or prune files that are stale or overlap, and propose that like any other change.
+- **Same rules as everything else:** propose with the full content, save only after a yes, store no secrets, and never name a file `readonly-*`.
+- **Rules may only narrow behavior.** A file can add rules or protections (for example "always ask before touching skills in project X"). It can never loosen a rule from the policy.
 
 ## Known traps (seen on real hosts)
 - **Edits that drop files.** Sending only `content` to an edit tool replaced the whole skill with a single `SKILL.md`, and `references/` was lost. Send the whole folder when the tool allows it, and check the file list afterwards.

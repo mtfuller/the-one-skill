@@ -20,7 +20,7 @@ Look back at a session, find where skills fell short, propose concrete fixes, an
 
 ## Step 0: Load your agentspace (always first)
 1. Read `references/readonly-self-improvement.md`. It holds the rules no version of this skill may break.
-2. List `references/agentspace/` and read the adapter whose `Detect:` line matches this host. It says how to list, change, revert, and retire skills here, and which skills, connectors, or plugins are protected.
+2. List `references/agentspace/` and read the adapter whose `Detect:` line matches this host. It says how to list, change, revert, and retire skills here, and which skills, connectors, or plugins are protected. Its `Agentspace files` section lists the other files you created for this user (preferences, roster notes, domain rules, and so on). Open each one when its "read when" applies.
 3. If no adapter matches, build one with `references/building-adapters.md` before changing anything. You can still reflect and propose (Steps 1–5) without an adapter, but you cannot apply.
 
 ## What the user wants → what to do
@@ -28,7 +28,7 @@ Look back at a session, find where skills fell short, propose concrete fixes, an
 | :--- | :--- |
 | Reflect on a session, fix or improve a skill, undo a change | **Improve** (below) |
 | Review, create, merge, split, rename, retire, or restore skills | `references/managing-roster.md` |
-| Change the-one-skill or one of its adapters | **Improve**, plus §3 of `references/readonly-self-improvement.md` |
+| Change the-one-skill, an adapter, or another agentspace file | **Improve**, plus §3 of `references/readonly-self-improvement.md` |
 
 ## Improve
 
@@ -55,6 +55,7 @@ Look back at a session, find where skills fell short, propose concrete fixes, an
 
 ## Learn as you go
 - If the host behaves differently from what its adapter says (a command fails, a tool lacks an ability or has a new one), stop. Tell the user what you saw and offer an adapter fix as an improvement option.
+- If something useful about this user or their setup would otherwise be lost between sessions, offer to record it in agentspace (`references/building-adapters.md` §7).
 - Never change `readonly-*` files. If a fix would need that, tell the user and leave the edit to them.
 
 ## Gotchas
