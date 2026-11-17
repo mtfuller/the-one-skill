@@ -22,10 +22,3 @@ Deterministic profiling of tabular `.csv` and `.tsv` datasets without third-part
 1. **Detect Dialect & Header:** Use Python's `csv.Sniffer` and `csv.reader` on the first 100 rows to confirm delimiter and quote characters.
 2. **Scan Row Integrity:** Count total rows, flag rows whose column count differs from the header length, and compute per-column null/empty percentages.
 3. **Summarize Types:** Classify each column as integer, float, ISO-8601 date, boolean, or free-text string and output a compact Markdown report to `artifacts/`.
-
-<!-- the-one-skill:opt-in -->
-<!-- the-one-skill:start -->
-### Continuous Evolution (`the-one-skill`)
-- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/evolve.md` (§1) to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
-- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, run the Full-Roster Orthogonality Audit in `the-one-skill/references/evolve.md` (§2).
-<!-- the-one-skill:end -->

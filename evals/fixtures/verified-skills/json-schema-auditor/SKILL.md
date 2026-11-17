@@ -22,10 +22,3 @@ Validate structured `.json` payloads and schema contracts using deterministic Py
 1. **Parse & Canonicalize:** Load the target `.json` and schema files with `json.loads()`, catching syntax errors with exact line and column numbers.
 2. **Audit Structural Rules:** Check `type`, `required`, `properties`, `additionalProperties`, and `enum` constraints recursively.
 3. **Emit Contract Report:** Output any schema violations or breaking diff entries with JSON Pointer paths (`/properties/foo/type`).
-
-<!-- the-one-skill:opt-in -->
-<!-- the-one-skill:start -->
-### Continuous Evolution (`the-one-skill`)
-- **Fast-Path Reflection:** If the user corrects output, a step retries, or a tool/schema error occurs while running this skill, read `the-one-skill/references/evolve.md` (§1) to propose a surgical, diff-first fix to **only this skill** (saving a pre-patch snapshot first).
-- **Boundary & Cap Discipline:** Keep this `SKILL.md` under 800 tokens; move bulky examples or checklists into `references/`. If another skill triggers simultaneously, run the Full-Roster Orthogonality Audit in `the-one-skill/references/evolve.md` (§2).
-<!-- the-one-skill:end -->

@@ -17,15 +17,15 @@
 - **Expected Agent Behavior:**
   1. Recognizes a repeatable domain workflow with no installed matching skill and loads `references/discover.md`.
   2. Checks trusted sources first (or drafts from the canonical template in `references/discover.md` if no upstream match fits).
-  3. Verifies the candidate source URL and stages the skill files:
+  3. Verifies the candidate source URL, stages the skill files outside the skills root, and checks overlap with the installed roster:
      ```bash
      python3 scripts/lint_skills.py --check-source-url <candidate_url>
-     python3 scripts/lint_skills.py <staged_dir>
+     python3 scripts/lint_skills.py <skills_root> <staged_dir>
      ```
   4. Confirms `PASS` on both trusted-source and security/lint checks and presents the discovery approval prompt before installing.
 
 ### Turn 3 — Approval & Execution
 > **User:** "Looks great, install it opted-in and run the check."
 - **Expected Agent Behavior:**
-  1. Installs the skill with `<!-- the-one-skill:opt-in -->` (and mirrors `<skill>=opt-in` in Memory if on Gemini Web).
+  1. Installs the skill with `skillctl.py --root <skills_root> install <staged_dir>` (on Gemini Web, creates it through Gemini's skill tools and records it in the Memory roster).
   2. Proceeds to execute the CSV inspection workflow.
