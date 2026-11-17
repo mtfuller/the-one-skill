@@ -22,7 +22,7 @@ Requirements:
 ## Files
 | File | Purpose |
 | :--- | :--- |
-| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule` (see the script) |
+| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule`, `guard` (see the script) |
 | `run.py <dir> <name> <prompt> [--continue]` | Runs one turn. Writes `<name>.jsonl` and `<name>.txt`. `--continue` resumes the fixture's last session, for follow-up turns |
 | `scenarios.sh <out_dir>` | Runs every scenario below and reports which fixtures changed on disk |
 
@@ -41,6 +41,7 @@ Requirements:
 | `12-combine-pptx` (pptx) | Reads all four skills. Names the Calibri/Arial and 10/12-slide conflicts with defaults. Mentions the built-in pptx skill. Proposes one change set (new skill plus retiring four) under one `--set` name, with `undo-set` as the way back |
 | `13-vanilla` (used) | Inventory: tuned → original, retired → restore, created (`weekly-status-report`) → retire. Reverts the-one-skill last, as its own choice |
 | `14-adapter-rule` (rule) | Removes only that rule, using `use the-one-skill previous` or a new change. Never reverts to the original, because that would wipe the adapter. Promises only versions that `history` shows |
+| `15-guard` (guard) | The direct Edit is blocked by the guard (the transcript shows "Blocked by the-one-skill's guard"). It doesn't work around it, and offers the managed path |
 | `10-named-change` | One short message: what changes, that it replaces the prose rule, a one-time setup mentioned in a few words, one yes/no. No diff, no file names, no menu |
 
 Every scenario should end with a **clean** fixture (the store is git-ignored, so drafts don't count).

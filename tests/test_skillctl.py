@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import guard_skills  # noqa: E402
 import skillctl  # noqa: E402
 from skillctl import Refused, SkillCtl, folder_hash  # noqa: E402
 
@@ -331,6 +332,30 @@ class SkillCtlTest(unittest.TestCase):
         with self.assertRaises(Refused):
             self.ctl.begin_set("Bad Name")
 
+    def test_guard_blocks_direct_edits_inside_skills_only(self) -> None:
+        roots = [self.root.resolve()]
+        inside = {"tool_name": "Edit", "tool_input": {"file_path": str(self.skill / "SKILL.md")}}
+        self.assertIsNotNone(guard_skills.check(inside, roots))
+        relative = {"tool_name": "Write", "tool_input": {"file_path": "skills/new/SKILL.md"}, "cwd": str(self.tmp)}
+        self.assertIsNotNone(guard_skills.check(relative, roots))
+        draft = self.ctl.draft("csv-inspector")  # drafts live in the store, outside the skills folder
+        self.assertIsNone(guard_skills.check({"tool_name": "Edit", "tool_input": {"file_path": str(draft / "SKILL.md")}}, roots))
+        self.assertIsNone(guard_skills.check({"tool_name": "Bash", "tool_input": {"command": "ls"}}, roots))
+        sibling = {"tool_name": "Write", "tool_input": {"file_path": str(self.tmp / "skills-notes.md")}}
+        self.assertIsNone(guard_skills.check(sibling, roots))
+
+    def test_guard_hook_end_to_end(self) -> None:
+        import json as _json
+        import subprocess
+        cmd = self.ctl.guard_settings()["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        event = _json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(self.skill / "SKILL.md")}})
+        r = subprocess.run(cmd, shell=True, input=event, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("the-one-skill", r.stderr)
+        ok = _json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(self.tmp / "elsewhere.md")}})
+        self.assertEqual(subprocess.run(cmd, shell=True, input=ok, capture_output=True, text=True).returncode, 0)
+        self.assertEqual(subprocess.run(cmd, shell=True, input="not json", capture_output=True, text=True).returncode, 0)
+
     def test_cli(self) -> None:
         args = ["--root", str(self.root)]
         self.assertEqual(skillctl.main(args + ["draft", "csv-inspector"]), 0)
@@ -347,6 +372,7 @@ class SkillCtlTest(unittest.TestCase):
         self.assertEqual(skillctl.main(args + ["new", "fresh-skill"]), 0)
         self.assertEqual(skillctl.main(args + ["retire", "csv-inspector", "--set", "cli-set", "--note", "why"]), 0)
         self.assertEqual(skillctl.main(args + ["sets"]), 0)
+        self.assertEqual(skillctl.main(args + ["guard"]), 0)
         self.assertEqual(skillctl.main(args + ["undo-set", "cli-set"]), 0)  # dry run
         self.assertFalse(self.skill.exists())
         self.assertEqual(skillctl.main(args + ["undo-set", "cli-set", "--apply"]), 0)
