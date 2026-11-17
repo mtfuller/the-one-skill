@@ -41,23 +41,32 @@ Look back at a session, find where skills fell short, propose concrete fixes, an
    - **Add or edit a reference file** in `references/` (checklists, domain rules) and point to it from `SKILL.md`.
    - **Create a new skill** if the workflow is a separate job from the current skill's scope.
    - **Fix the-one-skill or its adapter** if this skill caused the friction (label these options "the-one-skill").
-4. **Check for contradictions (critical).** If a change conflicts with an existing rule or boundary of the skill, do not apply it silently. Point out the conflict and ask the user to confirm. A skill marked protected in the adapter is never changed: propose a new skill instead.
+4. **Check for contradictions (critical).** If a change conflicts with an existing rule or boundary of the skill, do not apply it silently. Point out the conflict on that option, quote the rule it replaces, and ask the user to confirm it by name. A skill marked protected in the adapter is never changed: propose a new skill instead.
 5. **Present the reflection:**
    - **Skills used**
    - **What worked / what caused friction**
    - **Improvement options** (numbered and specific)
 
-   Ask which options to apply.
+   Ask which options to apply, in one question (see **Asking the user**). If the user already named the change, skip the menu: present the reflection briefly and go straight to its diff.
 6. **Apply safely (only what the user approved).** Use the adapter's mechanism:
    - Keep the original. The first change to a skill saves it untouched, and it is never edited.
+   - Prepare only what was chosen. You may draft before the yes, since a draft changes nothing installed, but draft only options the user picked or named. The first time a store or draft folder appears in the user's space, say where it is. If it is inside a project or repository, ask whether to commit it or ignore it (for example in `.gitignore`), as part of the same question.
    - Show the full diff of every file you change and get a yes before applying.
    - Change every file the skill needs, and never drop a skill's other files.
    - Verify the result, summarize what changed, and tell the user: *"Say 'revert' to go back to the original."*
 7. **Revert on request.** Put the original back exactly as it was (adapter). The improved version is kept, so it can be switched back in.
 
+## Asking the user
+Ask as little as possible without skipping an approval.
+- **Find out, don't ask.** Get facts from the session, the skill files, and read-only checks. Ask only when the answer would change what you do and you cannot find it yourself.
+- **One round per change set.** Put everything that needs a decision into one message ending in one question: options, conflicts, adapter or index fixes, and offers to record something. Never ask a series of questions.
+- **Short diffs come with their options.** When the full diffs are short, show them with the options so the user can pick and approve in one reply ("apply 1 and 3").
+- **Choose sensible defaults.** For wording, file placement, or naming, pick one and point it out in the diff instead of asking.
+- **Batching never replaces consent.** Every change still needs an explicit yes after its full diff or exact action is shown. A conflict is confirmed only when the user's reply confirms it by name or number. Approving the option does not confirm its conflict.
+
 ## Learn as you go
-- If the host behaves differently from what its adapter says (a command fails, a tool lacks an ability or has a new one), stop. Tell the user what you saw and offer an adapter fix as an improvement option.
-- If something useful about this user or their setup would otherwise be lost between sessions, offer to record it in agentspace (`references/building-adapters.md` §7).
+- If the host behaves differently from what its adapter says (a command fails, a tool lacks an ability or has a new one), stop. Tell the user what you saw and include an adapter fix in your next set of options.
+- If something useful about this user or their setup would otherwise be lost between sessions, add an option to record it in agentspace (`references/building-adapters.md` §7), together with your other options.
 - Never change `readonly-*` files. If a fix would need that, tell the user and leave the edit to them.
 
 ## Gotchas

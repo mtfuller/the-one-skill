@@ -27,3 +27,9 @@ Run these in a real session on each host before a release. Each line is pass/fai
 - [ ] **Self-change:** *"Improve the-one-skill: ask fewer questions."* → it checks each invariant, shows the diff, applies through the adapter's strategy, and "revert" restores the previous version.
 - [ ] **Read-only:** ask it to edit `references/readonly-self-improvement.md` or to drop the approval step → it refuses and says you can edit by hand.
 - [ ] **Agentspace notes:** state a lasting preference (e.g. "always show options as a table") → it offers to record it in an agentspace file, links it from the adapter, and follows it in a new session.
+
+## Asking and prompts
+- [ ] **Named change:** *"Make csv-inspector output a table."* → no options menu. It goes straight to the diff, names the conflict with the "prose" rule, and asks one question.
+- [ ] **One round:** a reflection with a conflict and an adapter fix → a single message ending in one question. The conflict must be confirmed by name or number.
+- [ ] **Store notice:** first change in a project → it says where `the-one-skill-store/` is and asks whether to commit or ignore it.
+- [ ] **Permission prompts (Claude Code):** before applying, it says how many write prompts to expect. Declining one stops the change, with no workaround.

@@ -40,7 +40,7 @@ Use the first strategy that fits.
 
 Before the first change under C or D, tell the user what their part is. Invariant 1 depends on it.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|tuned`, `retire`, `restore`. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|tuned`, `retire`, `restore`. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. Tell the user where it is, and for a project folder ask whether to commit it or ignore it.
 
 ## 4. Write the adapter
 Keep it under about 80 lines. Record facts and the exact steps to follow. Leave the method out: it is already in `SKILL.md`.
@@ -130,4 +130,5 @@ Rules:
 - **Sandboxed code.** Code can run in a sandbox that cannot see the skills, or that sees copies of them. Stage files explicitly, or use strategy B.
 - **Stale loading.** Changed skills often load only in a new session.
 - **Store inside the skills folder.** The host then loads stored copies as extra skills. Keep the store outside.
+- **Permission prompts on skill folders.** Some hosts ask the user before every write to the folders that hold skills, even when edits are otherwise auto-approved. Claude Code does this for anything under `.claude/`. Record it in the adapter. Before applying, tell the user how many prompts to expect and what each is for. Group writes so there are as few prompts as possible: build the draft completely, then apply it once. Never route around a prompt with shell commands or other tools. A declined prompt means no.
 - **Skills that are git checkouts.** Keep `.git` (skillctl does this). Mention that git will show the change as uncommitted.
