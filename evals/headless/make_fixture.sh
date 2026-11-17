@@ -9,6 +9,7 @@
 #   pptx     adapter + four overlapping PPTX proposal skills with conflicting rules
 #   used     adapter + csv-inspector tuned, helper retired, weekly-status-report created
 #   rule     adapter, then a second change adding a heavy rule to the adapter
+#   guard    adapter + the guard hook in .claude/settings.local.json
 set -euo pipefail
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 D=$1
@@ -151,6 +152,9 @@ rule)
   $C apply the-one-skill > /dev/null
   ;;
 adapter) ;;
+guard)
+  $C guard 2>/dev/null > "$D/.claude/settings.local.json"
+  ;;
 *) echo "unknown profile: $PROFILE" >&2; exit 1 ;;
 esac
 commit "staged: $PROFILE"

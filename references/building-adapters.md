@@ -3,7 +3,7 @@
 An **adapter** is a short file in `references/agentspace/`. It tells the-one-skill how to apply its method on one host, such as Claude Code, Gemini web chat, a Gemini task sandbox, or any other agent that loads skills. Adapters are written on the user's own system, from what can be observed there. They are not shipped with the skill. This file is the framework for building them. `references/readonly-self-improvement.md` holds the rules every adapter must keep.
 
 ## When to build or update one
-- No adapter's `Detect:` line matches the current host (Step 0).
+- No adapter's `Detect:` line matches the current host (the Start steps in `SKILL.md`).
 - The host behaved differently from what its adapter says.
 - The user wants to protect a skill, connector, or plugin, or record a preference about how skills are managed.
 
@@ -23,6 +23,7 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Can I rename or delete? (Record it, but do not rely on it.) | n/a |
 | Does the host have a skill directory, marketplace, or installer? | Find and install |
 | How many versions of a skill can be kept? | Step back |
+| Can the host run a check before file edits (for example Claude Code `PreToolUse` hooks)? | Guard |
 | Must skill names be unique? | Twin naming |
 | Can I reach the skills folder on a filesystem? | Store & swap |
 | Can I run Python 3, and does it see the same files as the skills folder? | `scripts/skillctl.py` |
@@ -46,8 +47,15 @@ Before the first change under C or D, tell the user what their part is. Invarian
 
 Call the script with absolute paths and nothing chained in front of it (no `cd …;` or `&&`). Permission allow rules match the start of a command, so a leading `cd` stops them from applying. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. In a project folder, add it to the project's ignore file as part of the setup, and mention that in a few words.
 
+### Guard against direct edits
+Instructions alone don't stop a model from editing a skill file directly, and auto-approval modes let such edits through. Where the host can run a check before file edits, offer a **guard** as part of the one-time setup. It blocks direct edits inside the skills folder, while the strategy's own tool keeps working.
+- **Claude Code:** `skillctl.py --root <skills_folder> guard` prints the hook setting. Merge it into the project's `.claude/settings.local.json` (or the user's `~/.claude/settings.json` for personal skills), keeping any hooks already there. `skillctl.py` runs as its own process, so the guard doesn't affect it. Drafts live in the store, outside the guarded folder.
+- **Verify it:** after installing, try one direct edit of a skill file, which should be blocked, then do nothing else to that file.
+- **Record it in the adapter** ("Guard: installed in …"). If the host can't run such checks, record "Guard: not available".
+- Only the user removes the guard. If they want to edit skills by hand, they can still do it outside the agent.
+
 ## 4. Write the adapter
-Keep it under about 80 lines. Record facts and the exact steps to follow. Leave the method out: it is already in `SKILL.md`.
+Keep it under about 80 lines. Record facts and the exact steps to follow. Leave the method out: it is already in `SKILL.md` and its references.
 
 ```markdown
 # Agentspace: <Host name and surface>
@@ -72,6 +80,7 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 - **Find and install:** host directory or installer, if any: ...
 - **Retire / restore:** ...
 - **Permissions:** prompts or policies to expect, and the allow rule the user added (if any): ...
+- **Guard:** installed in <settings file> | not available: ...
 - **Change the-one-skill itself:** ...
 
 ## Protected (never modify)
@@ -99,13 +108,13 @@ The adapter is the only file agentspace must have. Beyond it, you are free to or
 Conventions:
 - **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line. These headers let the index be rebuilt from the files alone.
 - **List every file in `index.md`** (§8), with one line on when to read it. A file the index does not list is never read.
-- **Read on demand.** Step 0 loads only the index and the matching adapter. Open other files when their "read when" applies.
+- **Read on demand.** Start loads only the index and the matching adapter. Open other files when their "read when" applies.
 - **Keep files small and single-purpose.** Merge or prune files that are stale or overlap, and propose that like any other change.
 - **Same rules as everything else:** describe it in plain words, save only after a yes, show the content if asked, store no secrets, and never name a file `readonly-*`.
 - **Rules may only narrow behavior.** A file can add rules or protections (for example "always ask before touching skills in project X"). It can never loosen a rule from the policy.
 
 ## 8. Keep the index
-`references/agentspace/index.md` is the map of agentspace. It ships empty (headers only) and is filled in on the user's system. It is the first file Step 0 reads, so it stays short: one row per file, with no content copied from the files.
+`references/agentspace/index.md` is the map of agentspace. It ships empty (headers only) and is filled in on the user's system. It is the first agentspace file read at Start, so it stays short: one row per file, with no content copied from the files.
 
 ```markdown
 # Agentspace index
@@ -130,6 +139,7 @@ Rules:
 - **The index is not a rule source.** It only points to files. Rules live in the files, and the policy still overrides them all.
 
 ## Known traps (seen on real hosts)
+- **Direct edits.** With the-one-skill loaded, a model still edited a skill's `SKILL.md` directly with its Edit tool, in auto mode and without a yes. Install the guard wherever the host allows it.
 - **Edits that drop files.** Sending only `content` to an edit tool replaced the whole skill with a single `SKILL.md`, and `references/` was lost. Send the whole folder when the tool allows it, and check the file list afterwards.
 - **False reports.** A tool said "updated" when nothing changed, or claimed an ability it did not have. List or read back after every action.
 - **Name collisions.** When a name is taken, hosts may offer to "update the existing skill". Choose a different name instead.

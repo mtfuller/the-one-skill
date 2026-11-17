@@ -59,6 +59,8 @@ It carries no maps for particular hosts. Instead it carries a **framework for dr
 
 If the land turns out different from the map, it stops, shows you what it found, and offers a correction.
 
+On Claude Code it also sets a **guard at the gate**: a small hook that blocks direct edits to your skills folder. That way, no session can rewrite a skill behind the-one-skill's back, even in auto mode. Its own tool still works, and you can remove the guard whenever you like.
+
 ### 📕 Learns your setup: *the red book of your journeys*
 `references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and trusted skill sources: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
@@ -94,13 +96,16 @@ On its first run it finds an empty `agentspace/index.md`, recognizes a fresh ins
 
 ## Layout
 ```
-SKILL.md                                  workflow: load agentspace → reflect → propose → check → apply → revert
+SKILL.md                                  the always-on core: start, routing, how to talk, hard rules
 references/readonly-self-improvement.md   read-only policy: tiers, invariants, self-change procedure
 references/building-adapters.md           framework: probe a host, choose a strategy, write adapters, keep the index
-references/managing-roster.md             review, create, merge, split, rename, retire, restore
+references/improving.md                   reflect on a session and improve skills
+references/undoing.md                     step back, undo change sets, back to vanilla
+references/managing-roster.md             review, create, find and install, merge, split, rename, retire, restore
 references/agentspace/index.md            map of agentspace (ships empty; filled in on your system)
 references/agentspace/*                   adapters and your notes (generated on your system, git-ignored)
 scripts/skillctl.py                       strategy A helper (Python 3 stdlib, no installs)
+scripts/guard_skills.py                   Claude Code hook: blocks direct edits inside skills folders
 tests/                                    unit tests for skillctl.py
 evals/checklist.md                        manual checks to run on a host before a release
 evals/headless/                           scripted Claude Code eval scenarios (claude -p)
@@ -119,6 +124,7 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | `apply <skill>` | Installs the draft (after your yes) |
 | `use <skill> original\|previous\|tuned\|<version>` | Reverts, steps back one version, or switches the improvement back in |
 | `history <skill>` | The kept versions: the original plus the last 5 applied |
+| `guard` | Prints the Claude Code hook that blocks direct edits to the skills folder |
 | `sets` / `undo-set <name> [--apply]` | Lists change sets; shows, then runs, the reverse steps of one (merges, vanilla, renames) |
 | `new <skill> [--from <folder>]` | Starts a skill that the-one-skill creates or installs, so it's tracked (going back to vanilla retires it) |
 | `retire <skill>` / `restore <skill>` | Moves a skill out of the skills folder and back, intact |

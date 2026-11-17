@@ -3,20 +3,21 @@
 The roster is every skill available on the host. All roster changes follow the same rules as improvements: say in plain language what will change, get one yes, verify, and keep it reversible. Show diffs and exact steps only when the user asks. The adapter says how each operation is done on this host. On strategy A, the `skillctl.py` commands are listed after each operation.
 
 ## Review the roster
-1. List every skill with its name, enabled state, source (the user's own, created by the-one-skill, installed from outside, or protected), and its managed state. On strategy A, `list --json` and `status` give you this, and `list` also flags structural problems.
-2. Check for:
+1. **Leave the-one-skill out.** It is the reviewer, not one of the skills under review. Don't list it in the table or propose changes to it, unless the user asks to review it or it clearly caused friction in this session (then one line at most). The same goes for its setup files.
+2. List every other skill with its name, enabled state, source (the user's own, created by the-one-skill, installed from outside, or protected), and its managed state. On strategy A, `list --json` and `status` give you this, and `list` also flags structural problems.
+3. Check for:
    - **Overlap:** descriptions that would trigger on the same request, including overlap with protected built-in skills. Propose a merge, or sharpen each skill's "Use when / Do not use when".
    - **Vague triggers:** a description that never says when to use the skill. Propose a rewrite.
    - **Broken structure:** a missing `SKILL.md`, a frontmatter `name` that differs from the folder, an invalid name, or a `SKILL.md` over 500 lines (move detail into `references/`).
    - **Gaps:** a workflow from this or recent sessions that no skill covers. Offer to create one, or to find one (below).
    - **Dead weight:** skills the user says they no longer use.
-3. Give a short table (skill · what's wrong · what you'd do), in plain words, and end with one question: do all, some, or none. Nothing changes until the user answers.
+4. Give a short table (skill · what's wrong · what you'd do), in plain words, and end with one question: do all, some, or none. Nothing changes until the user answers.
 
 ## Operations
 
 | Operation | How (always with approval) | Strategy A |
 | :--- | :--- | :--- |
-| **Improve** | The Improve steps in `SKILL.md`. | `draft` → edit → `apply` (`diff` if asked) |
+| **Improve** | `references/improving.md`. | `draft` → edit → `apply` (`diff` if asked) |
 | **Create** | Check that the name is free. Describe what the new skill will do, and create it after a yes. Show its files if asked. Track it as created by the-one-skill, so going back to vanilla can find it. | `new <name>` → write files → `apply` |
 | **Find and install** | See below. | `new <name> --from <folder>` |
 | **Merge** | See below. | `new` or `draft`, then `retire` each |
@@ -24,10 +25,10 @@ The roster is every skill available on the host. All roster changes follow the s
 | **Rename** | Names are identities. Create the new name with the same files, then retire the old one. | `new --from`, then `retire` |
 | **Retire** | Reversible removal. On strategy B, disable the skill. On C or D, tell the user how to do it. | `retire` |
 | **Restore** | Bring a retired skill back. Refuse if the name is now taken by another skill. | `restore` |
-| **Step back** | Undo the latest change to one skill but keep earlier ones. Check what is kept first: never promise a version that the store does not have. | `history`, `use previous` |
-| **Back to vanilla** | See below. | |
+| **Step back** | Undo the latest change to one skill but keep earlier ones (`references/undoing.md`). | `history`, `use previous` |
+| **Back to vanilla** | `references/undoing.md`. | |
 
-Run every operation that touches more than one skill (merge, split, rename, back to vanilla, installing several skills) as one **change set** (below), so it can be undone in one step.
+Run every operation that touches more than one skill (merge, split, rename, back to vanilla, installing several skills) as one **change set** (`references/undoing.md`), so it can be undone in one step.
 
 ## Find and install a skill from a trusted source
 Use this when the user wants an existing skill rather than one written for them, or when a gap is generic enough that someone has probably already solved it.
@@ -52,34 +53,6 @@ Never install from a source the user hasn't approved. Never run a skill's script
 3. **Choose the target.** Improve one existing skill if its name and scope still fit. Otherwise create a new skill with a name that covers the whole job. Bring over every reference file that is still needed.
 4. **Write a description that triggers on every request the old skills did**, plus "Do not use when" lines for anything a protected skill should handle.
 5. **Propose it as one change set:** the new or changed skill, plus retiring each of the others. Apply every step under the same set name, and verify it. Undoing it means restoring each retired skill and retiring the new one (or stepping the target back), in reverse order.
-
-## Back to vanilla
-Use this when the user wants every skill as it was before the-one-skill changed anything.
-
-1. **Take an inventory:**
-   - skills with a kept original that are not currently on it
-   - retired skills
-   - skills the-one-skill created or installed (`status` shows "created")
-   - skills edited by hand
-2. **Give a short table** (skill · now · after) in plain words, covering:
-   - put each skill back on its original
-   - restore each retired skill
-   - retire each skill the-one-skill created or installed
-   - **ask** about hand-edited skills, because their edits are the user's own work
-   - leave untouched any skill the-one-skill never changed
-3. **Revert the-one-skill last**, as its own decision. Its original has no adapter or notes, so reverting it means the next session starts from a fresh install. Offer to keep the-one-skill as it is.
-4. **Apply as one change set** and verify every skill. Nothing is deleted, so every tuned version can still be switched back in.
-
-## Change sets
-A change set groups the steps of one multi-skill change so it can be undone in one step. The tool keeps the record, outside the skills. Never keep a hand-written log for this.
-
-- **Strategy A:** give every step the same `--set <name>` (and one `--note "<why>"`), for example `apply proposal-deck --set merge-proposal-decks --note "4 PPTX skills overlapped"`, then `retire pptx-timeline-slides --set merge-proposal-decks`. `sets` lists them.
-- **Undo:** `undo-set <name>` lists the reverse steps, newest first, and changes nothing. Tell the user in plain words what will come back and what will go away, then run `undo-set <name> --apply` after a yes. It refuses if any skill changed after the set or a needed version is no longer kept. In that case, explain which and propose the remaining steps one by one.
-- **Other strategies:** there is no store to record in. List the exact reverse steps in your reply when the change is applied, and tell the user that this list is the only record.
-- **Undoing one rule or one change:** find it with `history <skill>` (and `diff` against kept versions), then pick the smallest undo, in this order:
-  1. step that skill back
-  2. a new change that removes just that rule
-  3. revert the whole skill to its original, only if nothing else depends on it
 
 ## Rules
 - **Protected skills** (see the adapter) are never merged, renamed, retired, or edited. You can still flag their overlap with other skills and propose changes to the user's own skills instead.

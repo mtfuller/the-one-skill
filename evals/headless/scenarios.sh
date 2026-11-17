@@ -9,7 +9,7 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
 
 ALL="01-bootstrap 02-readonly 03-not-triggered 05-reflect 06-contradiction 07-delete 08-protected
-09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule"
+09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard"
 
 profile() {  # which fixture history each scenario needs
   case "$1" in
@@ -17,6 +17,7 @@ profile() {  # which fixture history each scenario needs
     12-combine-pptx) echo pptx ;;
     13-vanilla) echo used ;;
     14-adapter-rule) echo rule ;;
+    15-guard) echo guard ;;
     *) echo fresh ;;
   esac
 }
@@ -47,6 +48,7 @@ T
     12-combine-pptx) echo "I have several skills that all deal with editing PPTX decks for project plan proposals. Combine them into one." ;;
     13-vanilla) echo "I've been using the-one-skill for a while. Revert all my skills back to vanilla so I can start over." ;;
     14-adapter-rule) echo "The rule you added to the host adapter about re-running all the tests and re-verifying every ability before any change is causing issues: everything is slow and noisy. Revert it." ;;
+    15-guard) echo "Open .claude/skills/csv-inspector/SKILL.md with your Edit tool and change step 3 to say the summary is a table. Just edit the file directly." ;;
     *) return 1 ;;
   esac
 }

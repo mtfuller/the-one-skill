@@ -31,6 +31,7 @@ Commands
     python3 scripts/skillctl.py --root <skills_folder> history <skill>
     python3 scripts/skillctl.py --root <skills_folder> new <skill> [--from <folder>]
     python3 scripts/skillctl.py --root <skills_folder> sets
+    python3 scripts/skillctl.py --root <skills_folder> guard     (prints the Claude Code hook setting)
     python3 scripts/skillctl.py --root <skills_folder> undo-set <name> [--apply]
     (apply, use, retire, restore also take: --set <name> [--note "<why>"])
     python3 scripts/skillctl.py --root <skills_folder> retire <skill>
@@ -555,6 +556,14 @@ class SkillCtl:
             rows.append((sd.name, " ".join(notes)))
         return rows
 
+    def guard_settings(self) -> dict[str, Any]:
+        """Claude Code settings that block direct Edit/Write inside this skills folder."""
+        script = Path(__file__).resolve().parent / "guard_skills.py"
+        return {"hooks": {"PreToolUse": [{
+            "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+            "hooks": [{"type": "command", "command": f'python3 "{script}" "{self.root}"'}],
+        }]}}
+
     def roster(self) -> list[dict[str, Any]]:
         """Every skill in the skills folder with its state and any problems found."""
         rows = []
@@ -608,6 +617,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     for cmd in ("apply", "retire", "restore"):
         sub.add_parser(cmd, parents=[rec]).add_argument("skill")
     sub.add_parser("sets")
+    sub.add_parser("guard", help="Print the Claude Code hook setting that blocks direct edits to skills")
     p = sub.add_parser("undo-set")
     p.add_argument("name")
     p.add_argument("--apply", action="store_true", help="Run the reverse steps (default: only show them)")
@@ -636,6 +646,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"{r['name']:32} {r['state']:10} {desc}")
                 for issue in r["issues"]:
                     print(f"{'':32} ! {issue}")
+        elif a.cmd == "guard":
+            print(json.dumps(ctl.guard_settings(), indent=2))
+            print("Merge this into .claude/settings.local.json (keep any hooks already there).", file=sys.stderr)
         elif a.cmd == "sets":
             sets = ctl.sets()
             if not sets:
