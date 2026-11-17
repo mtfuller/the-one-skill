@@ -74,12 +74,10 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 ## Host notes
 - <traps seen here, reload behavior, limits>
 
-## Agentspace files
-- `<file>.md`: <purpose>. Read when <situation>.
 ```
 
 ## 5. Save it
-Show the user the whole adapter and the strategy you chose, with reasons. After they approve, save it as a change to the-one-skill (self-change procedure, §3 of the policy). On the first change this also keeps the-one-skill's own original. Under strategy D, give the file to the user to add by hand.
+Show the user the whole adapter, the strategy you chose with reasons, and its new row in `index.md` (§8). After they approve, save it as a change to the-one-skill (self-change procedure, §3 of the policy). On the first change this also keeps the-one-skill's own original. Under strategy D, give the file to the user to add by hand.
 
 ## 6. Keep it accurate
 When the host does something the adapter does not describe, propose a fix in your reflection. Give the evidence: what you ran and what came back. Update `Verified:` whenever you confirm a fact again.
@@ -93,12 +91,37 @@ The adapter is the only file agentspace must have. Beyond it, you are free to or
 - `history.md`: a short log of applied changes and why, so later reflections can build on them.
 
 Conventions:
-- **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line, so Step 0 can tell them apart.
-- **Link every file from the adapter's `## Agentspace files` section**, with one line on when to read it. A file nobody links to is never read.
-- **Read on demand.** Step 0 loads only the adapter. Open other files when their "when to read" applies.
+- **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line. These headers let the index be rebuilt from the files alone.
+- **List every file in `index.md`** (§8), with one line on when to read it. A file the index does not list is never read.
+- **Read on demand.** Step 0 loads only the index and the matching adapter. Open other files when their "read when" applies.
 - **Keep files small and single-purpose.** Merge or prune files that are stale or overlap, and propose that like any other change.
 - **Same rules as everything else:** propose with the full content, save only after a yes, store no secrets, and never name a file `readonly-*`.
 - **Rules may only narrow behavior.** A file can add rules or protections (for example "always ask before touching skills in project X"). It can never loosen a rule from the policy.
+
+## 8. Keep the index
+`references/agentspace/index.md` is the map of agentspace. It is the first file Step 0 reads, so it stays short: one row per file, with no content copied from the files.
+
+```markdown
+# Agentspace index
+Updated: <YYYY-MM-DD>
+
+## Adapters
+| File | Host | Detect | Strategy | Verified |
+| :--- | :--- | :--- | :--- | :--- |
+| `claude-code.md` | Claude Code | Bash/Read tools; skills in ~/.claude/skills | A | <YYYY-MM-DD> |
+
+## Other files
+| File | Purpose | Read when |
+| :--- | :--- | :--- |
+| `preferences.md` | How the user likes reflections and options laid out | Before presenting a reflection |
+```
+
+Rules:
+- **Same diff.** Every change that adds, removes, renames, or repurposes an agentspace file also updates the index in the same diff. The user approves them together. Update `Updated:` each time.
+- **Shared files belong to no host.** Preferences, roster notes, and domain rules are about the user, not a host. List them once, under "Other files", so every adapter's host sees them.
+- **Mismatch means stop.** If the index and the folder disagree, report what differs and propose a fix to the index. Do not act on a file the index does not describe.
+- **Rebuilding.** If `index.md` is missing or damaged, rebuild it from each file's `Detect:`, `Verified:`, `Strategy:`, and `Purpose:` lines. Propose the result like any other change. Where a file has no `Purpose:` line, ask the user what it is for.
+- **The index is not a rule source.** It only points to files. Rules live in the files, and the policy still overrides them all.
 
 ## Known traps (seen on real hosts)
 - **Edits that drop files.** Sending only `content` to an edit tool replaced the whole skill with a single `SKILL.md`, and `references/` was lost. Send the whole folder when the tool allows it, and check the file list afterwards.

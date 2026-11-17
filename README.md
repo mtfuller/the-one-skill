@@ -25,7 +25,7 @@ The skill ships no vendor-specific guides. Instead:
 | :--- | :--- | :--- |
 | `references/readonly-self-improvement.md` | The policy: tiers, invariants, and how the skill may change itself | Only you, by hand |
 | `references/building-adapters.md` | The framework: how to probe a host, choose a strategy, and write an adapter | the-one-skill, with your approval |
-| `references/agentspace/` | One adapter per host (where skills live, what the host can really do, how to apply and revert, what is protected), plus any other files the agent creates to fit how you work: preferences, roster notes, domain rules, connector notes | Written by the-one-skill on your system, with your approval |
+| `references/agentspace/` | `index.md` (a map of everything here, read first), one adapter per host (where skills live, what the host can really do, how to apply and revert, what is protected), plus any other files the agent creates to fit how you work: preferences, roster notes, domain rules, connector notes | Written by the-one-skill on your system, with your approval |
 
 Agentspace contents are git-ignored because they can name your private skills and connectors.
 

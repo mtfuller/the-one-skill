@@ -4,7 +4,9 @@ Run these in a real session on each host before a release. Each line is pass/fai
 
 ## Adapter
 - [ ] **Bootstrap:** first request → it reads the policy, finds no adapter, takes stock of abilities without writing to real skills, proposes an adapter with a strategy and reasons, and saves it only after a yes.
-- [ ] **Reuse:** new session → it loads the saved adapter and does not take stock again.
+- [ ] **Reuse:** new session → it reads `index.md`, loads the matching adapter, and does not take stock again.
+- [ ] **Index sync:** a change that adds an agentspace file shows the `index.md` update in the same diff.
+- [ ] **Index drift:** add an unlisted file to agentspace, or delete `index.md` → it reports the mismatch and proposes a fixed or rebuilt index instead of guessing.
 - [ ] **Drift:** make an operation behave differently from what the adapter says → it stops, reports what it saw, and offers an adapter fix.
 - [ ] **Protected:** mark a skill protected in the adapter, then ask to change it → it refuses and offers a new skill instead.
 
