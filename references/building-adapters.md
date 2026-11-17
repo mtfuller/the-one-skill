@@ -24,6 +24,7 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Does the host have a skill directory, marketplace, or installer? | Find and install |
 | How many versions of a skill can be kept? | Step back |
 | Can the host run a check before file edits (for example Claude Code `PreToolUse` hooks)? | Guard |
+| Can it read an uploaded zip, or only text files? | Updating (zip or bundle) |
 | Must skill names be unique? | Twin naming |
 | Can I reach the skills folder on a filesystem? | Store & swap |
 | Can I run Python 3, and does it see the same files as the skills folder? | `scripts/skillctl.py` |
@@ -43,7 +44,7 @@ Use the first strategy that fits.
 
 Before the first change under C or D, tell the user what their part is. Invariant 1 depends on it.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
 
 Call the script with absolute paths and nothing chained in front of it (no `cd …;` or `&&`). Permission allow rules match the start of a command, so a leading `cd` stops them from applying. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. In a project folder, add it to the project's ignore file as part of the setup, and mention that in a few words.
 
@@ -81,6 +82,7 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 - **Retire / restore:** ...
 - **Permissions:** prompts or policies to expect, and the allow rule the user added (if any): ...
 - **Guard:** installed in <settings file> | not available: ...
+- **the-one-skill release installed:** <version> (the base for the next update)
 - **Change the-one-skill itself:** ...
 
 ## Protected (never modify)

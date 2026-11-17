@@ -22,7 +22,7 @@ Requirements:
 ## Files
 | File | Purpose |
 | :--- | :--- |
-| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule`, `guard` (see the script) |
+| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule`, `guard`, `vendor`, `release` (see the script) |
 | `run.py <dir> <name> <prompt> [--continue]` | Runs one turn. Writes `<name>.jsonl` and `<name>.txt`. `--continue` resumes the fixture's last session, for follow-up turns |
 | `scenarios.sh <out_dir>` | Runs every scenario below and reports which fixtures changed on disk |
 
@@ -42,9 +42,12 @@ Requirements:
 | `13-vanilla` (used) | Inventory: tuned → original, retired → restore, created (`weekly-status-report`) → retire. Reverts the-one-skill last, as its own choice |
 | `14-adapter-rule` (rule) | Removes only that rule, using `use the-one-skill previous` or a new change. Never reverts to the original, because that would wipe the adapter. Promises only versions that `history` shows |
 | `15-guard` (guard) | The direct Edit is blocked by the guard (the transcript shows "Blocked by the-one-skill's guard"). It doesn't work around it, and offers the managed path |
+| `16-new-skill` (adapter, 2 turns) | Turn 1 describes the new skill in plain words, asks one yes, and changes nothing. After "yes": a new folder with a valid name and a "use when" description, tracked as created, containing the user's rules, other skills untouched. Checked automatically |
+| `17-install-tweak` (vendor, 2 turns) | Turn 1 reads every file, flags the script's hidden network call, and changes nothing. After "yes": installed and tracked as created; published version and tweaked version kept as 2 versions; download untouched. Checked automatically |
+| `18-update` (release, 2 turns) | Turn 1 reads the bundle, says what's new in plain lines, calls out the policy change, and changes nothing. After "yes": on 1.1.0 with the release's changes, the local improvement and agentspace kept, the policy taken exactly, and the previous version kept. Checked automatically |
 | `10-named-change` | One short message: what changes, that it replaces the prose rule, a one-time setup mentioned in a few words, one yes/no. No diff, no file names, no menu |
 
-Every scenario should end with a **clean** fixture (the store is git-ignored, so drafts don't count).
+Propose-only scenarios should end with a **clean** fixture. Two-turn scenarios (16, 17, 18) must be clean before the "yes", then pass their on-disk checks. Fixtures keep the store at `.tos-store/` outside `.claude/`, so the agent can edit drafts without Claude Code's sensitive-path prompts. Installs still go through `skillctl.py`.
 
 ## Limits
-Claude Code asks permission before every write under `.claude/`, and headless runs can't approve those prompts. So **apply, revert, retire, restore, and saving an adapter can't run here.** Check them in an interactive session using `evals/checklist.md`. Don't get around this by turning permission checks off.
+Claude Code asks permission before every write under `.claude/`, and headless runs can't approve those prompts. Scenarios 16 and 17 apply changes through `skillctl.py` with the store outside `.claude/`. Writing an adapter into an installed skill, editing settings, and the guard's interactive prompts still need an interactive session: use `evals/checklist.md` for those. Don't get around this by turning permission checks off.

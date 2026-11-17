@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import bundle  # noqa: E402
 import guard_skills  # noqa: E402
 import skillctl  # noqa: E402
 from skillctl import Refused, SkillCtl, folder_hash  # noqa: E402
@@ -355,6 +356,131 @@ class SkillCtlTest(unittest.TestCase):
         ok = _json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(self.tmp / "elsewhere.md")}})
         self.assertEqual(subprocess.run(cmd, shell=True, input=ok, capture_output=True, text=True).returncode, 0)
         self.assertEqual(subprocess.run(cmd, shell=True, input="not json", capture_output=True, text=True).returncode, 0)
+
+    # ----- upgrade -----
+    def _release(self, version: str, edit=None) -> Path:
+        """A release folder of csv-inspector, built from the original files."""
+        rel = self.tmp / f"release-{version}"
+        shutil.rmtree(rel, ignore_errors=True)
+        shutil.copytree(self.ctl.version("csv-inspector", self.ctl.state("csv-inspector")["original"]), rel)
+        (rel / "VERSION").write_text(version + "\n")
+        if edit:
+            edit(rel)
+        return rel
+
+    def _setup_installed_release(self) -> None:
+        (self.skill / "VERSION").write_text("1.0.0\n")
+        (self.skill / "references" / "readonly-policy.md").write_text("Rule v1.\n")
+        (self.skill / "references" / "agentspace").mkdir()
+        (self.skill / "references" / "agentspace" / "index.md").write_text("# index (empty)\n")
+        self.original = folder_hash(self.skill)
+        d = self.ctl.draft("csv-inspector")  # local life: an adapter note and a local tweak
+        (d / "references" / "agentspace" / "claude-code.md").write_text("Detect: here\n")
+        (d / "references" / "agentspace" / "index.md").write_text("# index\n| claude-code.md |\n")
+        (d / "SKILL.md").write_text((d / "SKILL.md").read_text().replace("1. Read the file.", "1. Read the file (local tweak)."))
+        self.ctl.apply("csv-inspector")
+
+    def test_merge3(self) -> None:
+        base = ["a\n", "b\n", "c\n", "d\n"]
+        merged, clash = skillctl.merge3(base, ["A\n", "b\n", "c\n", "d\n"], ["a\n", "b\n", "c\n", "D\n"])
+        self.assertEqual((merged, clash), (["A\n", "b\n", "c\n", "D\n"], False))
+        merged, clash = skillctl.merge3(base, ["a\n", "X\n", "c\n", "d\n"], ["a\n", "X\n", "c\n", "d\n"])
+        self.assertEqual((merged, clash), (["a\n", "X\n", "c\n", "d\n"], False))
+        merged, clash = skillctl.merge3(base, ["a\n", "mine\n", "c\n", "d\n"], ["a\n", "theirs\n", "c\n", "d\n"])
+        self.assertTrue(clash)
+        self.assertIn(skillctl.CONFLICT_START + "\n", merged)
+        merged, clash = skillctl.merge3(base, ["a\n", "b\n", "c\n", "D\n"], base + ["e\n"])  # adjacent: fine
+        self.assertEqual((merged, clash), (["a\n", "b\n", "c\n", "D\n", "e\n"], False))
+        merged, clash = skillctl.merge3(base, base + ["mine\n"], base + ["theirs\n"])  # same insertion point
+        self.assertTrue(clash)
+
+    def test_upgrade_keeps_local_changes_and_agentspace(self) -> None:
+        self._setup_installed_release()
+        def edit(rel: Path) -> None:
+            (rel / "SKILL.md").write_text((rel / "SKILL.md").read_text() + "2. New step from the release.\n")
+            (rel / "references" / "new-ref.md").write_text("New reference.\n")
+            (rel / "references" / "readonly-policy.md").write_text("Rule v2.\n")
+        report = self.ctl.upgrade("csv-inspector", self._release("1.1.0", edit), keep=["references/agentspace"])
+        self.assertEqual(report["conflicts"], [])
+        self.assertIn("SKILL.md", report["merged"])
+        self.assertIn("references/new-ref.md", report["from_release"])
+        self.assertIn("references/readonly-policy.md", report["readonly_updated"])
+        self.assertFalse((self.skill / "references" / "new-ref.md").exists())  # nothing installed yet
+        before = folder_hash(self.skill)
+        self.ctl.apply("csv-inspector")
+        text = (self.skill / "SKILL.md").read_text()
+        self.assertIn("local tweak", text)
+        self.assertIn("New step from the release", text)
+        self.assertEqual((self.skill / "VERSION").read_text(), "1.1.0\n")
+        self.assertEqual((self.skill / "references" / "readonly-policy.md").read_text(), "Rule v2.\n")
+        self.assertEqual((self.skill / "references" / "agentspace" / "claude-code.md").read_text(), "Detect: here\n")
+        self.assertIn("claude-code.md", (self.skill / "references" / "agentspace" / "index.md").read_text())
+        self.ctl.use("csv-inspector", "previous")  # undo the update
+        self.assertEqual(folder_hash(self.skill), before)
+        self.ctl.use("csv-inspector", "tuned")
+        # next release: base is now 1.1.0, so the earlier release changes don't clash again
+        def edit2(rel: Path) -> None:
+            edit(rel)
+            (rel / "references" / "new-ref.md").write_text("New reference, revised.\n")
+        report = self.ctl.upgrade("csv-inspector", self._release("1.2.0", edit2), keep=["references/agentspace"])
+        self.assertEqual(report["conflicts"], [])
+        self.assertEqual(report["from_release"], ["VERSION", "references/new-ref.md"])
+
+    def test_upgrade_conflict_must_be_resolved(self) -> None:
+        self._setup_installed_release()
+        def edit(rel: Path) -> None:
+            (rel / "SKILL.md").write_text((rel / "SKILL.md").read_text().replace("1. Read the file.", "1. Read the file (release)."))
+        report = self.ctl.upgrade("csv-inspector", self._release("1.1.0", edit), keep=["references/agentspace"])
+        self.assertEqual(report["conflicts"], ["SKILL.md"])
+        with self.assertRaises(Refused):
+            self.ctl.apply("csv-inspector")
+        draft = Path(report["draft"]) / "SKILL.md"
+        lines = [ln for ln in draft.read_text().splitlines(keepends=True)
+                 if not ln.startswith(("<<<<<<<", "=======", ">>>>>>>")) and "(release)" not in ln]
+        draft.write_text("".join(lines))
+        self.ctl.apply("csv-inspector")
+        self.assertIn("local tweak", (self.skill / "SKILL.md").read_text())
+
+    def test_upgrade_guards(self) -> None:
+        self._setup_installed_release()
+        with self.assertRaises(Refused):  # older release
+            self.ctl.upgrade("csv-inspector", self._release("0.9.0"))
+        with self.assertRaises(Refused):  # a different skill
+            other = self._release("1.1.0", lambda r: (r / "SKILL.md").write_text(SKILL.replace("csv-inspector", "other")))
+            self.ctl.upgrade("csv-inspector", other)
+        # the agent may not edit a read-only file away from the release's exact version
+        def edit(rel: Path) -> None:
+            (rel / "references" / "readonly-policy.md").write_text("Rule v2.\n")
+        report = self.ctl.upgrade("csv-inspector", self._release("1.1.0", edit), keep=["references/agentspace"])
+        (Path(report["draft"]) / "references" / "readonly-policy.md").write_text("Rule v2, loosened.\n")
+        with self.assertRaises(Refused):
+            self.ctl.apply("csv-inspector")
+        # a hand-edited read-only file that the release also changed is left to the user
+        (Path(report["draft"]) / "references" / "readonly-policy.md").write_text("Rule v2.\n")
+        self.ctl.draft("csv-inspector")  # abandon that upgrade
+        (self.skill / "references" / "readonly-policy.md").write_text("Rule v1, hand edit.\n")
+        with self.assertRaises(Refused):
+            self.ctl.upgrade("csv-inspector", self._release("1.1.0", edit), keep=["references/agentspace"])
+
+    def test_bundle_round_trip_without_private_agentspace(self) -> None:
+        (self.skill / "VERSION").write_text("1.2.3\n")
+        (self.skill / "references" / "agentspace").mkdir()
+        (self.skill / "references" / "agentspace" / "index.md").write_text("# index\n")
+        (self.skill / "references" / "agentspace" / "private.md").write_text("secret\n")
+        text = bundle.pack(self.skill)
+        self.assertIn("Version: 1.2.3", text)
+        self.assertNotIn("secret", text)
+        b = self.tmp / "b.md"
+        b.write_text(text)
+        out = self.tmp / "unpacked"
+        written = bundle.unpack(b, out)
+        self.assertIn("references/agentspace/index.md", written)
+        self.assertEqual((out / "SKILL.md").read_text(), SKILL)
+        self.assertEqual((out / "references" / "delimiters.md").read_text(), "Comma only.\n")
+        self.assertFalse((out / "references" / "agentspace" / "private.md").exists())
+        (self.skill / "tests").mkdir()
+        (self.skill / "tests" / "test_x.py").write_text("pass\n")
+        self.assertIn("=== FILE: tests/test_x.py ===", bundle.pack(self.skill))  # releases are whole folders
 
     def test_cli(self) -> None:
         args = ["--root", str(self.root)]
