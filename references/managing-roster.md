@@ -43,6 +43,7 @@ Use this when the user wants an existing skill rather than one written for them,
 3. **Compare candidates against the user's actual corrections.** Use a table: which corrections each candidate fixes, which it doesn't, who publishes it, and when it was last updated. Be honest when nothing covers everything, and say what would close the gap (a small local addition, a hook, or a rule).
 4. **Read before installing (policy invariant 11).** Read every file of the chosen skill. Summarize its instructions, scripts, network access, and anything it would run or install. Flag anything that reaches beyond its stated purpose.
 5. **Install as a new skill** after a yes. Show the files if asked. Install through the host's own installer if it has one, or else as a created skill (strategy A: `new <name> --from <folder>`, then `apply <name> --note "<source> <version>"`).
+   - **Install it exactly as published first.** Any tweaks (the user's requests, or removing something you flagged) go in afterwards as a separate change, under the same change set. Then the kept versions are "as published" and "with tweaks", so "undo my tweaks" leaves the published skill in place, and an update from the source can be compared with what was installed. One yes covers both steps.
 6. **Verify.** Confirm the skill is listed and enabled. Tell the user it loads in a new session, and that retiring it undoes the install.
 
 Never install from a source the user hasn't approved. Never run a skill's scripts in order to evaluate it.
