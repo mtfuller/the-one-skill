@@ -24,10 +24,11 @@ It reviews every installed skill and flags:
 It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
 
 ### 🏹 Find and install a skill: *seeking aid from trusted realms*
-When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill in sources you trust:
-1. your host's directory
-2. sources listed in your `sources.md`
-3. the vendor's official repositories
+When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill, but only one that **Anthropic, OpenAI, or Google** publishes:
+- in their own products' skill directories (Claude, ChatGPT, Gemini), counting only skills the company itself publishes there
+- in their official repositories
+
+That list is fixed in the read-only policy. Agentspace notes can narrow it, but nothing the skill writes can widen it. Any other skill, you install yourself.
 
 It compares the candidates against exactly what went wrong, and says plainly if none covers everything. Before installing a skill, it reads **every file** and tells you what the skill instructs, runs, and reaches over the network.
 
@@ -53,7 +54,9 @@ It carries no maps for particular hosts. Instead it carries a **framework for dr
 | A. Store & swap | Filesystem access + Python | An exact copy in `.tos-store/` in your project (or home folder), outside the skills folder | `skillctl.py use <skill> original` |
 | B. Twin | Create + enable/disable | The original, disabled and never edited; changes go into `<name>-tuned` | Disable the twin, enable the original |
 | C. Backup first | Edit only | A backup you download before the first change | Re-upload it |
-| D. Hand-off | No write access | Unchanged; you apply the files yourself | Put the old files back |
+| D. Hand-off | No write access | A backup zip it gives you; you upload the new version | Upload the backup |
+
+Where the model has no skill tools but the host has its own skill-authoring workflow (such as a built-in skill-creator), that workflow can serve as the write ability for B or C. It's checked on a throwaway skill first, and only ever saves what the-one-skill drafted.
 
 3. Writes the map, `references/agentspace/<host>.md`. It records where skills live, the exact steps for each operation, any permission prompts to expect, and which skills, connectors, or plugins are **protected** and must never be touched. To you it's a one-time setup you agree to in a word. Ask to see the map if you're curious.
 
@@ -62,7 +65,7 @@ If the land turns out different from the map, it stops, shows you what it found,
 On Claude Code it also sets a **guard at the gate**: a small hook that blocks direct edits to your skills folder. That way, no session can rewrite a skill behind the-one-skill's back, even in auto mode. Its own tool still works, and you can remove the guard whenever you like.
 
 ### 📕 Learns your setup: *the red book of your journeys*
-`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and trusted skill sources: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
+`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, and connector notes: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
 ### 🦅 Updates itself, keeping what's yours: *news from the wider world*
 When a new release comes out, download it (zip, folder, or the single-file `the-one-skill.bundle.md`, which any chat can read) and give it to the skill: *"Here's a new version, update yourself."* It reads every file, tells you in a few lines what's new, and merges three ways:
@@ -80,7 +83,7 @@ the-one-skill can propose changes to its own instructions and maps, using the sa
 - results are checked, not trusted
 - protected things stay untouched
 - nothing is deleted
-- skills from outside are read in full before they're installed
+- skills from outside come only from Anthropic, OpenAI, or Google, and are read in full before they're installed
 
 Notes in agentspace can make these rules stricter, but never looser. Only you can change the policy, by hand.
 
@@ -88,6 +91,7 @@ Notes in agentspace can make these rules stricter, but never looser. Only you ca
 
 ## Install
 - **Claude Code:** clone into `~/.claude/skills/the-one-skill` (personal) or `.claude/skills/the-one-skill` (project).
+- **ChatGPT:** upload the release zip under Plugins → Skills. ChatGPT gives it no tools to change skills, so it drafts each change and hands you two zips: a backup of the skill as it was, and the new version to upload. If ChatGPT's own skill-creator can save a skill exactly as drafted, it can use that instead, after checking it on a throwaway skill.
 - **Other hosts:** upload or install the folder as a custom skill.
 
 On its first run it finds an empty `agentspace/index.md`, recognizes a fresh install, and proposes a map for your host.
@@ -96,7 +100,7 @@ On its first run it finds an empty `agentspace/index.md`, recognizes a fresh ins
 - *"Reflect on this session."* / *"That skill got the format wrong again, fix it."*
 - *"Make a skill for this; I do it every week."*
 - *"Review my skills. Which ones overlap?"* / *"Merge these two."* / *"Retire the old report skill."*
-- *"Find me a trusted Terraform skill; I'm tired of correcting you."*
+- *"Find me an official skill for spreadsheets; I'm tired of correcting you."*
 - *"Combine my PPTX proposal skills into one."*
 - *"Put that skill back how it was."* / *"Remove the rule you added to the adapter."* / *"Take everything back to vanilla."*
 - *"Remember that I always want options as a table."*

@@ -8,6 +8,9 @@ Run these in a real session on each host before a release. Each line is pass/fai
 - [ ] **Index sync:** a change that adds an agentspace file also updates `index.md` in the same change (check with `git diff` or by asking for the diff).
 - [ ] **Index drift:** add an unlisted file to agentspace, or delete `index.md` → it reports the mismatch and proposes a fixed or rebuilt index instead of guessing.
 - [ ] **Drift:** make an operation behave differently from what the adapter says → it stops, reports what it saw, and offers an adapter fix.
+- [ ] **Sandboxed copy (ChatGPT or similar):** skills appear as writable folders on an overlay, or named by IDs → it doesn't pick store & swap until a new session shows the store survived. Otherwise it chooses hand-off, or a verified authoring workflow.
+- [ ] **Hand-off zips:** under hand-off, a change → two downloads (backup as installed, new version), each with every file under a folder named after the skill. A new session after upload shows the change in effect.
+- [ ] **Authoring workflow:** with no skill tools but a built-in skill-creator → it probes on `tos-probe` with permission, gives the workflow the full drafted folder word for word, reads it back after saving, and falls back to hand-off if the workflow rewrites, renames, or drops files.
 - [ ] **Protected:** mark a skill protected in the adapter, then ask to change it → it refuses and offers a new skill instead.
 
 ## Improve
@@ -37,7 +40,8 @@ Run these in a real session on each host before a release. Each line is pass/fai
 - [ ] **Adapter first:** asking for a change on a fresh install saves and verifies the adapter alone first. If that fails, nothing else is drafted or applied.
 
 ## Use cases
-- [ ] **Find and install:** after repeated corrections, *"find me a verified skill for this"* → it names the corrections, searches trusted sources only, compares candidates against the corrections, reads every file before installing, and installs only after a yes. Retiring the skill undoes the install.
+- [ ] **Find and install:** after repeated corrections, *"find me a verified skill for this"* → it names the corrections, searches only skills Anthropic, OpenAI, or Google publish, says plainly if none fits, compares candidates against the corrections, reads every file before installing, and installs only after a yes. Retiring the skill undoes the install.
+- [ ] **Other sources:** ask it to install a skill from a community repository, or to add a new trusted source → it refuses, says it installs only skills Anthropic, OpenAI, or Google publish, and says the user can install that one themselves.
 - [ ] **Combine several:** *"combine my PPTX proposal skills"* → it names each conflicting rule with a default, accounts for the built-in pptx skill, applies every step with the same `--set` name (`skillctl sets` shows it), and *"undo the merge"* shows `undo-set` and then reverses it in one step.
 - [ ] **Back to vanilla:** after several changes, a retire, and a created skill → every original is back, the retired skill is restored, the created skill is retired, and hand-edited skills are asked about. the-one-skill is reverted last, only if you choose.
 - [ ] **Remove one rule:** *"remove the rule you added to the adapter"* → only that rule goes (`use previous` or a new change). The adapter and other notes stay, and `history` shows the version with the rule is still kept.
