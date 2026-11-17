@@ -42,7 +42,9 @@ Use the first strategy that fits.
 
 Before the first change under C or D, tell the user what their part is. Invariant 1 depends on it.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`. The store keeps the original plus the last 5 applied versions of each skill. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. Tell the user where it is, and for a project folder ask whether to commit it or ignore it.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
+
+Call the script with absolute paths and nothing chained in front of it (no `cd …;` or `&&`). Permission allow rules match the start of a command, so a leading `cd` stops them from applying. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. In a project folder, add it to the project's ignore file as part of the setup, and mention that in a few words.
 
 ## 4. Write the adapter
 Keep it under about 80 lines. Record facts and the exact steps to follow. Leave the method out: it is already in `SKILL.md`.
@@ -64,11 +66,12 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 
 ## Operations
 - **List roster:** ...
-- **Improve:** draft → show diff → yes → apply → verify by ...
+- **Improve:** draft → edit → plain-language yes → apply → verify by ...
 - **Revert / step back / switch back:** ... (which versions are kept: ...)
 - **Create:** ...
 - **Find and install:** host directory or installer, if any: ...
 - **Retire / restore:** ...
+- **Permissions:** prompts or policies to expect, and the allow rule the user added (if any): ...
 - **Change the-one-skill itself:** ...
 
 ## Protected (never modify)
@@ -80,18 +83,17 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 ```
 
 ## 5. Save it
-Show the user the whole adapter, the strategy you chose with reasons, and its new row in `index.md` (§8). After they approve, save it as a change to the-one-skill (self-change procedure, §3 of the policy). On the first change this also keeps the-one-skill's own original. Under strategy D, give the file to the user to add by hand.
+To the user this is a one-time setup: say so in a few words, in the same message as their request. Show the adapter, the strategy, and the index row only if they ask. After they say yes, save it as a change to the-one-skill (self-change procedure, §3 of the policy). On the first change this also keeps the-one-skill's own original. Under strategy D, give the file to the user to add by hand.
 
 ## 6. Keep it accurate
 When the host does something the adapter does not describe, propose a fix in your reflection. Give the evidence: what you ran and what came back. Update `Verified:` whenever you confirm a fact again.
 
 ## 7. Shape agentspace to fit the user
 The adapter is the only file agentspace must have. Beyond it, you are free to organize `references/agentspace/` however best serves this user. Add files and subfolders when they keep knowledge that would otherwise be lost between sessions. For example:
-- `preferences.md`: how the user likes reflections, diffs, and options presented.
+- `preferences.md`: how the user likes reflections and proposals presented (for example "always show diffs", if they want them).
 - `roster-notes.md`: what each skill is for, which ones overlap on purpose, and which are being phased out.
 - `<domain>.md`: standing rules for a field the user works in, shared across several of their skills.
 - `connectors/<name>.md`: how a connector behaves here and which of its tools are safe to rely on.
-- `history.md` (standard: created with the first change): a log of applied changes and change sets, with how to undo each one. Format in `references/managing-roster.md`.
 - `sources.md`: skill sources the user trusts, for finding and installing skills.
 
 Conventions:
@@ -99,7 +101,7 @@ Conventions:
 - **List every file in `index.md`** (§8), with one line on when to read it. A file the index does not list is never read.
 - **Read on demand.** Step 0 loads only the index and the matching adapter. Open other files when their "read when" applies.
 - **Keep files small and single-purpose.** Merge or prune files that are stale or overlap, and propose that like any other change.
-- **Same rules as everything else:** propose with the full content, save only after a yes, store no secrets, and never name a file `readonly-*`.
+- **Same rules as everything else:** describe it in plain words, save only after a yes, show the content if asked, store no secrets, and never name a file `readonly-*`.
 - **Rules may only narrow behavior.** A file can add rules or protections (for example "always ask before touching skills in project X"). It can never loosen a rule from the policy.
 
 ## 8. Keep the index
@@ -121,7 +123,7 @@ Updated: <YYYY-MM-DD>
 ```
 
 Rules:
-- **Same diff.** Every change that adds, removes, renames, or repurposes an agentspace file also updates the index in the same diff. The user approves them together. Update `Updated:` each time.
+- **Same change.** Every change that adds, removes, renames, or repurposes an agentspace file also updates the index in the same change, under the same yes. Update `Updated:` each time.
 - **Shared files belong to no host.** Preferences, roster notes, and domain rules are about the user, not a host. List them once, under "Other files", so every adapter's host sees them.
 - **Mismatch means stop.** If the index and the folder disagree, report what differs and propose a fix to the index. Do not act on a file the index does not describe.
 - **Rebuilding.** If `index.md` is missing or damaged, rebuild it from each file's `Detect:`, `Verified:`, `Strategy:`, and `Purpose:` lines. Propose the result like any other change. Where a file has no `Purpose:` line, ask the user what it is for.
@@ -134,5 +136,6 @@ Rules:
 - **Sandboxed code.** Code can run in a sandbox that cannot see the skills, or that sees copies of them. Stage files explicitly, or use strategy B.
 - **Stale loading.** Changed skills often load only in a new session.
 - **Store inside the skills folder.** The host then loads stored copies as extra skills. Keep the store outside.
-- **Permission prompts on skill folders.** Some hosts ask the user before every write to the folders that hold skills, even when edits are otherwise auto-approved. Claude Code does this for anything under `.claude/`. Record it in the adapter. Before applying, tell the user how many prompts to expect and what each is for. Group writes so there are as few prompts as possible: build the draft completely, then apply it once. Never route around a prompt with shell commands or other tools. A declined prompt means no.
+- **Permission policies that block commands.** Besides prompts, a host can block commands outright with an automatic policy (for example Claude Code's auto mode), which reads a script that replaces skill folders as destructive. When you build the adapter, check whether such a policy is active. If it is, offer the user the exact allow rule for the helper before the first change, for example `Bash(python3 /abs/path/to/the-one-skill/scripts/skillctl.py:*)` in the project's `.claude/settings.local.json`. Record the rule in the adapter. If a command is still blocked, stop and give the user the exact command to run themselves. Never look for another route.
+- **Permission prompts on skill folders.** Some hosts ask the user before every write to the folders that hold skills, even when edits are otherwise auto-approved. Claude Code does this for anything under `.claude/`. Record it in the adapter. Before applying, tell the user in a few words how many prompts to expect. Group writes so there are as few prompts as possible: build the draft completely, then apply it once. Never route around a prompt with shell commands or other tools. A declined prompt means no.
 - **Skills that are git checkouts.** Keep `.git` (skillctl does this). Mention that git will show the change as uncommitted.
