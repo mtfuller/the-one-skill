@@ -1,64 +1,70 @@
 # the-one-skill
 
-> One skill to manage them all. It reflects on how your skills performed, improves them, keeps your roster tidy, learns your setup, and never loses an original.
+> *One skill to tend them all, one skill to find them,*
+> *one skill to mend them all, and never leave the old behind.*
 
-`the-one-skill` is an Agent Skill for any host that loads skills: Claude Code, Gemini, or anything else that follows the same pattern. It ships no vendor-specific code paths. On first use it studies your host, writes its own adapter, and from then on manages your skills there. Every change is shown first, needs your yes, and can be undone.
+An Agent Skill that keeps watch over all your other skills. After each journey it sits by the fire and goes over the road behind you: which skills were used, where you had to correct the output, where the way got hard. Then it proposes how to make the next journey easier. It applies only the changes you approve, and it **never loses the original**.
 
-## Capabilities
+It works on any host that loads skills: Claude Code, Gemini, or another agent that follows the same pattern. It ships no vendor-specific code. On first use it studies your host and writes its own adapter for it.
 
-### 🔍 Reflect and improve
-After a session, it identifies which skills were used, what you had to correct, and where friction came from. It then proposes **numbered, specific fixes**, such as "add a rule: dates in YYYY-MM-DD", not "make the format clearer". It checks each fix against the skill's existing rules and raises conflicts instead of overwriting them. It applies only the options you pick.
+---
 
-### 🗂️ Manage your roster
+## ✦ What it can do
+
+### 🔥 Reflect and improve: *the council at the hearth*
+After a session it names the skills that came with you and what you had to correct, then offers **numbered, specific fixes**. "Add a rule: dates in YYYY-MM-DD" is specific. "Make the format clearer" is not. Each fix is checked against the skill's existing rules. A conflict is raised and confirmed by you, never overruled quietly. If you've already named the change you want, it goes straight to the diff, and it asks one question, not a string of them.
+
+### 🗺️ Manage your roster: *keeping the company in order*
 It reviews every installed skill and flags:
-- overlapping triggers
-- vague descriptions
-- broken structure (a frontmatter name that doesn't match the folder, oversized `SKILL.md` files)
-- gaps where a recurring workflow has no skill
+- triggers that overlap
+- descriptions too vague to say when the skill should be used
+- broken structure
+- workflows that recur but no skill covers
 
-It can also **create, merge, split, rename, retire, and restore** skills. "Delete" always means a retire that can be undone. Permanent deletion is left to you, in your host's settings.
+It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want.
 
-### ↩️ Never lose the original
-The first change to any skill saves the untouched original. Say *"revert"* to put it back exactly as it was, and *"bring the change back"* to swap the improved version in again. Edits you made by hand are never overwritten.
+### 📜 Never lose the original: *the old ways are kept*
+The first change to any skill saves the original untouched. Say *"revert"* and it comes back exactly as it was. Say *"bring the change back"* and the improved version returns. Edits you made by hand are never overwritten.
 
-### 🧭 Adapts to any host
-Instead of maintained vendor guides, the skill carries a **framework** for building adapters. On a new host it:
-1. Takes stock of what the host can really do, using read-only probes (it never asks the host to describe itself, and never experiments on your real skills).
-2. Picks the safest way to keep originals that the host supports:
+### 🧭 Adapts to any host: *learning the lay of each land*
+It carries no maps for particular hosts. Instead it carries a **framework for drawing them**. On a new host it:
+1. Checks what the host can really do, using read-only probes. It never takes the host's word for it, and never experiments on your real skills.
+2. Picks the safest way the host allows to keep originals:
 
 | Strategy | When the host offers | Original kept as | Revert |
 | :--- | :--- | :--- | :--- |
-| A. Store & swap | Filesystem access + Python | An exact copy in `the-one-skill-store/`, next to the skills folder | `skillctl.py use <skill> original` |
-| B. Twin | Create + enable/disable | The original, disabled and never edited; changes go in `<name>-tuned` | Disable the twin, enable the original |
+| A. Store & swap | Filesystem access + Python | An exact copy in `the-one-skill-store/`, outside the skills folder | `skillctl.py use <skill> original` |
+| B. Twin | Create + enable/disable | The original, disabled and never edited; changes go into `<name>-tuned` | Disable the twin, enable the original |
 | C. Backup first | Edit only | A backup you download before the first change | Re-upload it |
 | D. Hand-off | No write access | Unchanged; you apply the files yourself | Put the old files back |
 
-3. Writes `references/agentspace/<host>.md`, recording where skills live, the exact steps for each operation, and which skills, connectors, or plugins are **protected** and must never be touched. It shows you the file before saving it.
+3. Writes the map, `references/agentspace/<host>.md`. It records where skills live, the exact steps for each operation, any permission prompts to expect, and which skills, connectors, or plugins are **protected** and must never be touched. You see the file before it's saved.
 
-If the host later behaves differently from what the adapter says, the skill stops and offers a fix to the adapter, with evidence.
+If the land turns out different from the map, it stops, shows you what it found, and offers a correction.
 
-### 🧠 Learns your setup
-`references/agentspace/` is the skill's own workspace for you. Beyond the host adapter, it can keep whatever helps it serve you between sessions, such as preferences, roster notes, domain rules, connector notes, and a change history. `index.md` is a one-page map of all of it, read first at the start of every session, so the skill knows at a glance what it has. Every addition is proposed and approved like any other change.
+### 📕 Learns your setup: *the red book of your journeys*
+`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and a history of past changes: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
-### 🔁 Improves itself, within limits it can't change
-the-one-skill can propose changes to its own instructions and adapters, using the same flow it uses for any skill: diff, approval, reversible. What it may never do is set by `references/readonly-self-improvement.md`, a policy it is not allowed to edit, which defines ten invariants. Among them:
+### ⚖️ Improves itself, within limits it cannot change
+the-one-skill can propose changes to its own instructions and maps, using the same diff, approval and revert as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has ten invariants. Among them:
 - originals are kept
 - nothing changes without approval
-- no quiet substitution of one action for another
-- verify results instead of trusting the host
+- no action is quietly swapped for another
+- results are checked, not trusted
 - protected things stay untouched
 - nothing is deleted
 
-Agentspace files may add rules, never loosen these.
+Notes in agentspace can make these rules stricter, but never looser. Only you can change the policy, by hand.
+
+---
 
 ## Install
 - **Claude Code:** clone into `~/.claude/skills/the-one-skill` (personal) or `.claude/skills/the-one-skill` (project).
 - **Other hosts:** upload or install the folder as a custom skill.
 
-The first time you use it, it reads the empty `agentspace/index.md`, sees a fresh install, and proposes an adapter for your host.
+On its first run it finds an empty `agentspace/index.md`, recognizes a fresh install, and proposes a map for your host.
 
-## Use it
-Just ask:
+## Speak, friend, and ask
 - *"Reflect on this session."* / *"That skill got the format wrong again, fix it."*
 - *"Make a skill for this; I do it every week."*
 - *"Review my skills. Which ones overlap?"* / *"Merge these two."* / *"Retire the old report skill."*
@@ -77,6 +83,7 @@ references/agentspace/*                   adapters and your notes (generated on 
 scripts/skillctl.py                       strategy A helper (Python 3 stdlib, no installs)
 tests/                                    unit tests for skillctl.py
 evals/checklist.md                        manual checks to run on a host before a release
+evals/headless/                           scripted Claude Code eval scenarios (claude -p)
 ```
 
 ### `skillctl.py` (strategy A)
@@ -86,24 +93,26 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | Command | What it does |
 | :--- | :--- |
 | `list [--json]` | Every installed skill, its state, and any structural problems |
-| `status` | Skills the-one-skill manages: `original`, `tuned`, `edited`, `retired` |
+| `status` | Skills the-one-skill manages: `original`, `tuned`, `edited`, or `retired` |
 | `draft <skill>` | Saves the original (first time only) and opens a draft in the store |
 | `diff <skill>` | Shows the draft against the installed skill |
 | `apply <skill>` | Installs the draft (after you approve the diff) |
-| `use <skill> original\|tuned` | Revert, or switch the improvement back in |
+| `use <skill> original\|tuned` | Reverts, or switches the improvement back in |
 | `retire <skill>` / `restore <skill>` | Moves a skill out of the skills folder and back, intact |
 
 Built-in safeguards:
 - It never overwrites hand edits.
 - It checks every copy against the original before trusting it.
-- It refuses any change to `readonly-*` files.
+- It refuses to change `readonly-*` files.
 - It keeps a skill's `.git` folder across swaps.
 - If a command is interrupted, running it again finishes the job.
 
 ## Privacy
-Your agentspace can name your private skills and connectors, so everything in `references/agentspace/` except the empty `index.md` is git-ignored. Once the skill fills in your index, git will show it as modified. Don't commit that copy upstream.
+Your agentspace can name your private skills and connectors, so everything in `references/agentspace/` except the empty `index.md` is git-ignored. Once the skill fills in your index, git shows it as modified. Keep it home: don't commit it upstream.
 
 ## Develop
 ```bash
-python3 -m unittest discover tests
+python3 -m unittest discover tests            # unit tests for skillctl.py
+evals/headless/scenarios.sh /tmp/tos-eval     # judgment scenarios in real Claude Code sessions
 ```
+See [`evals/headless/README.md`](evals/headless/README.md) for what each scenario checks, and [`evals/checklist.md`](evals/checklist.md) for the interactive checks.
