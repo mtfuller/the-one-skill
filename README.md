@@ -15,13 +15,27 @@ It works on any host that loads skills: Claude Code, Gemini, or another agent th
 After a session it tells you, in a line or two, what went wrong and what it would change: *"CSV summaries kept coming back as prose. From now on they'll be a table, which replaces the skill's old prose rule. Apply?"* You say yes once. You never have to manage skills, files, or versions: it talks about how things will behave, never about the mechanics. If you want the exact diff, just ask, and it shows it right away.
 
 ### 🗺️ Manage your roster: *keeping the company in order*
+It keeps your skills **orthogonal**: every job and every policy has one owner. Two skills overlap if they answer the same requests, *or* if they carry the same procedure. Three deck skills that each repeat the same brand rules are one policy with three copies, and a fix lands in one but not the others. A built-in check compares every pair of skills on both counts and finds instruction blocks repeated across skills. It runs on every review, and before any skill is created, installed, or widened, so overlap is caught before it's added.
+
 It reviews every installed skill and flags:
-- triggers that overlap
+- skills that compete for the same requests, or repeat the same procedure
 - descriptions too vague to say when the skill should be used
+- the same skill name in two places (project, personal, plugin)
 - broken structure
 - workflows that recur but no skill covers
 
-It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
+It keeps a **roster map** in its notes: which skill owns each job and each shared policy, and which overlaps you chose to keep, so it doesn't ask twice.
+
+It can **create, merge, extract a shared policy, split, rename, retire, and restore** skills. A repeated policy becomes one skill the others defer to, or the skills merge when they were really one job. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
+
+### 🛠️ Create from verified work: *no forge starts cold*
+A new skill never starts from a blank page if someone has already done the work. Before writing one, it checks the skills already on your host and the ones Anthropic, OpenAI, or Google publish, reads the closest, and picks a start:
+- **install** a verified skill that fits as is
+- **adapt** one that fits most of the job: installed exactly as published, with your changes as a second version you can undo on their own
+- **borrow** structure, steps, and scripts from verified skills for a new one
+- **scratch** only when nothing close exists
+
+The draft is filled from your actual corrections in the session, names the neighbours it hands off to, and is checked for overlap before you see it.
 
 ### 🏹 Find and install a skill: *seeking aid from trusted realms*
 When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill, but only one that **Anthropic, OpenAI, or Google** publishes:

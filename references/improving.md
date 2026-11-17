@@ -6,14 +6,17 @@ Use this to reflect on a session and to fix or improve a skill, including the-on
 2. **Evaluate.** Review what was generated (content, structure, tone, accuracy). Look at what the user corrected: format (table vs. prose), wrong assumptions, wrong targets or properties the skill should have handled. Note friction and gaps. Focus on the skills that did the work. Mention the-one-skill only if it caused the friction, in one line.
 3. **Choose concrete improvements**, specific enough to act on ("dates as YYYY-MM-DD", not "clearer format"). How to make each one is up to you:
    - Edit the skill's instructions, or add a reference file it points to.
-   - Create a new skill if the workflow is a separate job.
+   - Create a new skill if the workflow is a separate job, starting from the best verified work (`references/managing-roster.md`, "Create a skill").
    - Install a skill published by Anthropic, OpenAI, or Google if the job is generic enough that one probably exists (`references/managing-roster.md`).
+   - **Put each rule where it is owned.** If the correction is about a policy another skill owns (see the roster map), change the owner, not the skill you used. If the same correction applies to several skills, it is a shared policy: propose giving it one owner instead of adding the rule to each.
    - Fix the-one-skill or its adapter if this skill caused the friction.
 4. **Check for contradictions (critical).** Note every rule or boundary of the skill that a change would override, so you can name it in your message. A skill marked protected in the adapter is never changed: offer a new skill instead.
 5. **Tell the user, briefly:** what went wrong, and what you'd change to fix it, in plain language, one line per change. If the user already said what they want, skip the analysis and just confirm the change. End with one question: apply all, some, or none.
 6. **Apply what the user approved,** using the adapter's mechanism, never by editing installed skill files directly:
    - Keep the original. The first change to a skill saves it untouched, and it is never edited.
    - Prepare only what was approved, and change every file the skill needs. Never drop a skill's other files.
+   - Before proposing, check the draft for new overlap (strategy A: `overlap --candidate <skill>`). A change that widens a skill's triggers or copies another skill's procedure is named in your message, with the boundary or owner you'd use instead.
+   - If the change moves what the skill owns, update the roster map in the same change.
    - Verify the result, then report it in one line with how to undo it.
 
 ## Learn as you go

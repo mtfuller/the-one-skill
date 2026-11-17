@@ -2,6 +2,13 @@
 
 Plain-language notes for each release. the-one-skill reads these when you ask it to update itself.
 
+## 1.1.0
+- Keeps skills orthogonal in what they do, not only in what triggers them. A new check compares every pair of skills for competing triggers and for repeated procedure, and finds instruction blocks copied across skills. It runs on every roster review, and before a skill is created, installed, or widened.
+- A policy repeated across several skills gets one owner: the skills merge if they were one job, or the policy moves into one skill the others defer to. Rules are added to the skill that owns the policy, not copied.
+- Keeps a roster map in your notes: which skill owns each job and shared policy, and which overlaps you chose to keep.
+- Creating a skill now starts from verified work. It checks skills already on your host and the ones Anthropic, OpenAI, or Google publish, then installs, adapts, or borrows from the closest before writing anything from scratch.
+- Compares against your personal, plugin, and built-in skill folders too (read-only), and reports the same skill name in two places.
+
 ## 1.0.2
 - Finds and installs skills only from Anthropic, OpenAI, or Google. The editable list of trusted sources (`sources.md`) is gone, and the read-only policy now fixes the list.
 - Works on hosts that only show skills to code as a temporary copy, such as ChatGPT. It no longer treats a folder it can write to as saved until a new session shows the change lasted. Until then it hands changes off to you.

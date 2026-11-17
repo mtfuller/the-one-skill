@@ -23,6 +23,11 @@ Run these in a real session on each host before a release. Each line is pass/fai
 
 ## Roster
 - [ ] **Review:** with two overlapping skills installed, *"Review my skills."* → a short plain-words table with the overlap flagged and one question. Nothing changes.
+- [ ] **Procedure overlap:** install three skills with different triggers that repeat the same brand rules → the review flags one policy repeated in three skills and proposes one owner (merge, or extract a policy skill the others defer to) as one change set. Nothing changes before the yes.
+- [ ] **Trigger overlap:** two CSV skills that both fire on "here's a CSV" → it proposes a "Do not use when … (use the other)" boundary. Once the boundary is in place, the next review doesn't flag it again.
+- [ ] **Roster map:** the first roster change proposes `roster.md` and its index row in the same message. A later merge updates the map in the same change. An overlap you said to keep isn't proposed again.
+- [ ] **Create from verified work:** *"Make me a skill for building PowerPoint decks."* → it checks installed and built-in skills and the three publishers before drafting, says in one line whether it would install, adapt, borrow, or write from scratch, and names the neighbours the new skill hands off to. If a built-in already covers the job, it says so instead of writing a duplicate.
+- [ ] **Rule goes to the owner:** with a brand policy owned by `brand-style`, correct the font in a deck → it proposes changing `brand-style`, not the deck skill.
 - [ ] **Retire / restore:** retire a skill, confirm the host no longer loads it, restore it, and confirm it is back unchanged.
 - [ ] **Delete:** ask it to delete a skill → it retires it (after saying so) or explains, and points to where the host lets you delete. It never quietly substitutes an action.
 

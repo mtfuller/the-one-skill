@@ -562,5 +562,134 @@ class SkillCtlTest(unittest.TestCase):
         self.assertEqual(skillctl.main(args + ["use", "missing-skill", "original"]), 1)
 
 
+BRAND = """## Brand rules
+- Use the Arial font for every heading and body text in the document.
+- Put the company logo in the top right corner of the first page only.
+- Keep the primary colour navy blue and never use more than two accent colours.
+- End with a contact slide that lists the account owner and their email address.
+"""
+
+
+def skill_md(name: str, description: str, body: str) -> str:
+    return f"---\nname: {name}\ndescription: {description}\n---\n# {name}\n{body}"
+
+
+class OverlapTest(unittest.TestCase):
+    """Orthogonality: overlap in triggers and in procedure."""
+
+    ROSTER = {
+        "proposal-deck": ("Build sales proposal decks as PPTX. Use when the user asks for a proposal or pitch deck.",
+                          "1. Gather the client name, the problem statement, and the proposed pricing tiers.\n"
+                          "2. Write one slide per pricing tier with a comparison table and a recommendation.\n" + BRAND),
+        "timeline-slides": ("Turn project milestones into a timeline slide. Use when the user wants a roadmap visual.",
+                            "1. Read milestones with dates and owners, then sort them chronologically before drawing.\n"
+                            "2. Draw a horizontal arrow with milestone markers spaced in proportion to the dates.\n" + BRAND),
+        "board-update": ("Draft quarterly board update memos. Use when the user prepares a board meeting.",
+                         "1. Collect revenue, burn, runway and hiring numbers for the quarter from the finance sheet.\n"
+                         "2. Lead with the three decisions the board must take, then the metrics, then the risks.\n" + BRAND),
+        "csv-inspector": ("Inspect CSV files and report columns, types and missing values. Use when the user shares a CSV file.",
+                          "1. Detect the delimiter and encoding, then load the first thousand rows into memory.\n"
+                          "2. Report every column with its inferred type and the count of missing values as a table.\n"),
+        "csv-summary": ("Summarize CSV data files with totals and averages per column. Use when the user shares a CSV file "
+                        "and wants a summary.",
+                        "1. Load the whole file, group by the category column if there is one, and compute totals.\n"
+                        "2. Present averages, minimums and maximums for every numeric column in one markdown table.\n"),
+        "git-release": ("Cut a tagged release from main with a changelog. Use when the user says ship, release, or tag.",
+                        "1. Check the working tree is clean and the tests pass before creating any tag on the branch.\n"
+                        "2. Write the changelog section from merged pull requests since the previous tag was created.\n"),
+        "the-one-skill": ("Manage skills. Use when the user wants to change a skill.", BRAND),
+    }
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "skills"
+        for name, (desc, body) in self.ROSTER.items():
+            self.write(self.root / name, name, desc, body)
+        self.builtin = self.tmp / "builtin"
+        self.write(self.builtin / "pptx", "pptx", "Create, read and edit PowerPoint pptx decks and slides. "
+                   "Use when any pptx file or slide deck is involved.", "1. Build the presentation with python-pptx.\n")
+        self.ctl = SkillCtl(self.root)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp)
+
+    @staticmethod
+    def write(folder: Path, name: str, desc: str, body: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "SKILL.md").write_text(skill_md(name, desc, body))
+
+    def pair(self, r: dict, a: str, b: str) -> dict | None:
+        return next((p for p in r["pairs"] if {p["a"], p["b"]} == {a, b}), None)
+
+    def test_policy_repeated_in_three_skills_is_one_block(self) -> None:
+        r = self.ctl.overlap()
+        top = r["shared_blocks"][0]
+        self.assertEqual(top["skills"], ["board-update", "proposal-deck", "timeline-slides"])
+        self.assertEqual(top["lines"], 4)
+        p = self.pair(r, "proposal-deck", "board-update")
+        self.assertLess(p["triggers"], 0.30)  # different requests ...
+        self.assertIn("same procedure", p["verdict"])  # ... same procedure
+
+    def test_the_one_skill_and_unrelated_skills_are_left_out(self) -> None:
+        r = self.ctl.overlap()
+        names = {n for p in r["pairs"] for n in (p["a"], p["b"])} | {n for b in r["shared_blocks"] for n in b["skills"]}
+        self.assertNotIn("the-one-skill", names)
+        self.assertNotIn("git-release", names)
+
+    def test_trigger_overlap_needs_a_stated_boundary(self) -> None:
+        p = self.pair(self.ctl.overlap(), "csv-inspector", "csv-summary")
+        self.assertGreaterEqual(p["triggers"], 0.30)
+        self.assertFalse(p["boundary_stated"])
+        self.assertIn("add a 'Do not use when", p["verdict"])
+        desc, body = self.ROSTER["csv-inspector"]
+        self.write(self.root / "csv-inspector", "csv-inspector",
+                   desc + " Do not use for totals or averages (use csv-summary).", body)
+        p = self.pair(self.ctl.overlap(), "csv-inspector", "csv-summary")
+        self.assertTrue(p["boundary_stated"])
+        self.assertIn("boundary stated", p["verdict"])
+
+    def test_a_name_in_the_trigger_sentence_is_not_a_boundary(self) -> None:
+        p = self.pair(self.ctl.overlap(also=[self.builtin]), "proposal-deck", "pptx")
+        self.assertIsNotNone(p)
+        self.assertFalse(p["boundary_stated"])  # "as PPTX" says what it makes, not where to go instead
+        self.assertEqual(p["readonly"], ["pptx"])
+        self.assertIn("never change pptx", p["verdict"])
+
+    def test_candidate_draft_is_checked_before_it_is_proposed(self) -> None:
+        d = self.ctl.new("csv-stats")
+        (d / "SKILL.md").write_text(skill_md(
+            "csv-stats", "Compute averages and totals per column of CSV data files. Use when the user shares a CSV file.",
+            "1. Load the whole file, group by the category column if there is one, and compute totals.\n"))
+        r = self.ctl.overlap(candidate="csv-stats")
+        self.assertTrue(r["pairs"])
+        self.assertTrue(all("csv-stats" in (p["a"], p["b"]) for p in r["pairs"]))
+        self.assertIn("same job twice", self.pair(r, "csv-stats", "csv-summary")["verdict"])
+        self.assertTrue(all("csv-stats" in b["skills"] for b in r["shared_blocks"]))
+        with self.assertRaises(Refused):
+            self.ctl.overlap(candidate="no-such-skill")
+
+    def test_draft_of_an_installed_skill_replaces_it(self) -> None:
+        d = self.ctl.draft("timeline-slides")
+        desc, body = self.ROSTER["timeline-slides"]
+        (d / "SKILL.md").write_text(skill_md("timeline-slides", desc, body.replace(BRAND, "Follow the brand rules.\n")))
+        r = self.ctl.overlap(candidate="timeline-slides")
+        self.assertFalse(r["shared_blocks"])  # the draft no longer repeats the policy
+        self.assertFalse(r["shadowed"])
+
+    def test_same_name_in_two_folders_is_reported(self) -> None:
+        personal = self.tmp / "personal"
+        self.write(personal / "git-release", "git-release", "Release things. Use when shipping.", "")
+        r = self.ctl.overlap(also=[personal, self.builtin])
+        self.assertIn("git-release", r["shadowed"])
+
+    def test_cli_overlap(self) -> None:
+        args = ["--root", str(self.root)]
+        self.assertEqual(skillctl.main(args + ["overlap"]), 0)
+        self.assertEqual(skillctl.main(args + ["overlap", "--json", "--also", str(self.builtin)]), 0)
+        self.assertEqual(skillctl.main(args + ["overlap", "--candidate", str(self.builtin / "pptx")]), 0)
+        self.assertEqual(skillctl.main(args + ["overlap", "--candidate", "missing"]), 1)
+        self.assertFalse(self.ctl.store.exists())  # overlap only reads: not even the store is created
+
+
 if __name__ == "__main__":
     unittest.main()

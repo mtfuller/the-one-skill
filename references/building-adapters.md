@@ -16,6 +16,7 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Question | Needed for |
 | :--- | :--- |
 | Can I list skills, with name, enabled state, and source? | Roster |
+| Which other skill folders can I read (personal, plugin, built-in)? | Overlap checks |
 | Can I read every file of a skill? | Evaluate, diff |
 | Can I create a skill? With more than one file? | Create |
 | Can I edit a skill? Does editing keep history? Does it drop files I did not send? | Apply |
@@ -60,7 +61,7 @@ When you use it:
 - **Verify.** Read the saved skill back, file by file. Then confirm in a new session that the host loads the new version.
 - **Record it** in the adapter, with the exact steps that worked.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`, `move-store [--to <dir>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `overlap [--candidate <skill|folder>] [--also <folder> …] [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`, `move-store [--to <dir>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
 
 Call the script with absolute paths and nothing chained in front of it (no `cd …;` or `&&`). Permission allow rules match the start of a command, so a leading `cd` stops them from applying. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. By default it is `<project>/.tos-store` for `<project>/.claude/skills` (for personal skills in `~/.claude/skills`, that's `~/.tos-store`). It sits outside `.claude/`, so editing drafts doesn't trigger Claude Code's permission prompts. In a project, add `.tos-store/` to the project's ignore file as part of the setup, and mention that in a few words. If an older store exists at `.claude/the-one-skill-store`, `skillctl` keeps using it. Offer `move-store` once, in the same message as the next change.
 
@@ -83,6 +84,7 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 
 ## Where skills live
 <paths or UI location, including scopes such as personal or project>
+Other skill folders (read-only, compared for overlap): <personal, plugin, or built-in skill folders, or "none visible">
 
 ## Abilities
 | Ability | Status | Notes |
@@ -118,7 +120,7 @@ When the host does something the adapter does not describe, propose a fix in you
 ## 7. Shape agentspace to fit the user
 The adapter is the only file agentspace must have. Beyond it, you are free to organize `references/agentspace/` however best serves this user. Add files and subfolders when they keep knowledge that would otherwise be lost between sessions. For example:
 - `preferences.md`: how the user likes reflections and proposals presented (for example "always show diffs", if they want them).
-- `roster-notes.md`: what each skill is for, which ones overlap on purpose, and which are being phased out.
+- `roster.md`: the roster map: which skill owns each job and each shared policy, and which overlaps are deliberate. Its format is in `references/managing-roster.md`. It is the one file besides the adapter that the-one-skill proposes on its own, with the first roster review or roster change.
 - `<domain>.md`: standing rules for a field the user works in, shared across several of their skills.
 - `connectors/<name>.md`: how a connector behaves here and which of its tools are safe to rely on.
 
@@ -145,6 +147,7 @@ Updated: <YYYY-MM-DD>
 ## Other files
 | File | Purpose | Read when |
 | :--- | :--- | :--- |
+| `roster.md` | Which skill owns each job and shared policy | Before any roster change or review |
 | `preferences.md` | How the user likes reflections and options laid out | Before presenting a reflection |
 ```
 

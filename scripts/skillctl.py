@@ -21,6 +21,9 @@ How it works
   go in, your local changes since the last release you installed stay, `--keep` paths (such as
   references/agentspace) are kept as they are, and both-changed lines become conflict markers to
   resolve in the draft. `readonly-*` files may change only to exactly the release's version.
+* `overlap` compares skills in what triggers them and in what they do, and lists instruction blocks
+  repeated across skills (scripts/overlap.py). `--candidate` checks one draft or folder against the
+  roster before it is proposed; `--also` adds read-only folders (personal, plugin, built-in skills).
 * `--set <name>` on apply/use/retire/restore records the step in a change set (in the store, so it
   needs no extra approval). `sets` lists them; `undo-set <name>` shows the reverse steps and
   `undo-set <name> --apply` runs them, newest first, after checking nothing changed since.
@@ -28,6 +31,7 @@ How it works
 Commands
 --------
     python3 scripts/skillctl.py --root <skills_folder> list [--json]
+    python3 scripts/skillctl.py --root <skills_folder> overlap [--candidate <skill|folder>] [--also <folder> ...] [--json]
     python3 scripts/skillctl.py --root <skills_folder> status
     python3 scripts/skillctl.py --root <skills_folder> draft <skill>
     python3 scripts/skillctl.py --root <skills_folder> diff <skill>
@@ -56,6 +60,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import overlap as _overlap  # noqa: E402
 
 STORE_DIRNAME = ".tos-store"
 LEGACY_STORE_DIRNAME = "the-one-skill-store"
@@ -805,6 +812,24 @@ class SkillCtl:
             "hooks": [{"type": "command", "command": f'python3 "{script}" "{self.root}"'}],
         }]}}
 
+    def overlap(self, candidate: str | Path | None = None, also: Sequence[str | Path] = ()) -> dict[str, Any]:
+        """Overlap in triggers and procedure across the roster (plus read-only `also` folders).
+
+        `candidate` is a folder, or the name of a skill with a draft in the store (from `draft` or
+        `new`); only findings that involve it are returned."""
+        cand = None
+        if candidate is not None:
+            path = Path(candidate).expanduser()
+            if not (path / "SKILL.md").is_file() and NAME_RE.match(str(candidate)):
+                path = self.sdir(str(candidate)) / "draft"
+            cand = _overlap.load(path.resolve(), "candidate")
+            if cand is None:
+                raise Refused(f"No SKILL.md for `{candidate}`: pass a folder, or a skill with a draft (`draft`/`new`).")
+            if path.name == "draft" and self.sdir(path.parent.name) == path.parent:
+                cand.name = path.parent.name  # a draft is the skill it drafts, whatever its frontmatter says
+        roots = [(self.root, "roster", False)] + [(Path(a).expanduser().resolve(), str(a), True) for a in also]
+        return _overlap.analyze(_overlap.skills_for(roots, cand), cand.name if cand else None)
+
     def roster(self) -> list[dict[str, Any]]:
         """Every skill in the skills folder with its state and any problems found."""
         rows = []
@@ -858,6 +883,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     for cmd in ("apply", "retire", "restore"):
         sub.add_parser(cmd, parents=[rec]).add_argument("skill")
     sub.add_parser("sets")
+    p = sub.add_parser("overlap", help="Find skills that overlap in triggers or procedure (read-only)")
+    p.add_argument("--candidate", help="A draft (skill name) or folder to check against the roster")
+    p.add_argument("--also", action="append", default=[], help="Extra read-only skills folder (repeatable)")
+    p.add_argument("--json", action="store_true", help="Machine-readable output")
     p = sub.add_parser("move-store", help="Move the store (e.g. from the old .claude/the-one-skill-store to .tos-store)")
     p.add_argument("--to", help=f"Destination (default: <project>/{STORE_DIRNAME})")
     sub.add_parser("guard", help="Print the Claude Code hook setting that blocks direct edits to skills")
@@ -897,6 +926,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"{r['name']:32} {r['state']:10} {desc}")
                 for issue in r["issues"]:
                     print(f"{'':32} ! {issue}")
+        elif a.cmd == "overlap":
+            r = ctl.overlap(a.candidate, a.also)
+            print(json.dumps(r, indent=2) if a.json else _overlap.report(r))
         elif a.cmd == "move-store":
             old = ctl.store
             print(f"Store moved from {old} to {ctl.move_store(a.to)}. Pass --store if you use a non-default place.")
