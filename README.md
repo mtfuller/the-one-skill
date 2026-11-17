@@ -24,10 +24,11 @@ It reviews every installed skill and flags:
 It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
 
 ### 🏹 Find and install a skill: *seeking aid from trusted realms*
-When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill in sources you trust:
-1. your host's directory
-2. sources listed in your `sources.md`
-3. the vendor's official repositories
+When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill, but only one that **Anthropic, OpenAI, or Google** publishes:
+- in their own products' skill directories (Claude, ChatGPT, Gemini), counting only skills the company itself publishes there
+- in their official repositories
+
+That list is fixed in the read-only policy. Agentspace notes can narrow it, but nothing the skill writes can widen it. Any other skill, you install yourself.
 
 It compares the candidates against exactly what went wrong, and says plainly if none covers everything. Before installing a skill, it reads **every file** and tells you what the skill instructs, runs, and reaches over the network.
 
@@ -64,7 +65,7 @@ If the land turns out different from the map, it stops, shows you what it found,
 On Claude Code it also sets a **guard at the gate**: a small hook that blocks direct edits to your skills folder. That way, no session can rewrite a skill behind the-one-skill's back, even in auto mode. Its own tool still works, and you can remove the guard whenever you like.
 
 ### 📕 Learns your setup: *the red book of your journeys*
-`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and trusted skill sources: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
+`references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, and connector notes: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
 ### 🦅 Updates itself, keeping what's yours: *news from the wider world*
 When a new release comes out, download it (zip, folder, or the single-file `the-one-skill.bundle.md`, which any chat can read) and give it to the skill: *"Here's a new version, update yourself."* It reads every file, tells you in a few lines what's new, and merges three ways:
@@ -82,7 +83,7 @@ the-one-skill can propose changes to its own instructions and maps, using the sa
 - results are checked, not trusted
 - protected things stay untouched
 - nothing is deleted
-- skills from outside are read in full before they're installed
+- skills from outside come only from Anthropic, OpenAI, or Google, and are read in full before they're installed
 
 Notes in agentspace can make these rules stricter, but never looser. Only you can change the policy, by hand.
 
@@ -99,7 +100,7 @@ On its first run it finds an empty `agentspace/index.md`, recognizes a fresh ins
 - *"Reflect on this session."* / *"That skill got the format wrong again, fix it."*
 - *"Make a skill for this; I do it every week."*
 - *"Review my skills. Which ones overlap?"* / *"Merge these two."* / *"Retire the old report skill."*
-- *"Find me a trusted Terraform skill; I'm tired of correcting you."*
+- *"Find me an official skill for spreadsheets; I'm tired of correcting you."*
 - *"Combine my PPTX proposal skills into one."*
 - *"Put that skill back how it was."* / *"Remove the rule you added to the adapter."* / *"Take everything back to vanilla."*
 - *"Remember that I always want options as a table."*

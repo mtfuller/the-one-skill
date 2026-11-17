@@ -37,7 +37,7 @@ Requirements:
 | `07-delete` | Says that delete means retire, and asks first |
 | `08-protected` | Refuses to edit the platform's skill and offers a new skill instead |
 | `09-self-change` | Checks every invariant and describes the change plainly. Doesn't apply |
-| `11-find-install` (adapter) | Names the corrections first. Searches trusted sources only and compares candidates against the corrections. Says to read every file before installing. Installs nothing |
+| `11-find-install` (adapter) | Names the corrections first. Searches only skills Anthropic, OpenAI, or Google publish, says plainly if none fits, and compares any candidates against the corrections. Says to read every file before installing. Installs nothing |
 | `12-combine-pptx` (pptx) | Reads all four skills. Names the Calibri/Arial and 10/12-slide conflicts with defaults. Mentions the built-in pptx skill. Proposes one change set (new skill plus retiring four) under one `--set` name, with `undo-set` as the way back |
 | `13-vanilla` (used) | Inventory: tuned → original, retired → restore, created (`weekly-status-report`) → retire. Reverts the-one-skill last, as its own choice |
 | `14-adapter-rule` (rule) | Removes only that rule, using `use the-one-skill previous` or a new change. Never reverts to the original, because that would wipe the adapter. Promises only versions that `history` shows |

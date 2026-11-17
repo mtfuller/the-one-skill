@@ -7,7 +7,7 @@ Use this to reflect on a session and to fix or improve a skill, including the-on
 3. **Choose concrete improvements**, specific enough to act on ("dates as YYYY-MM-DD", not "clearer format"). How to make each one is up to you:
    - Edit the skill's instructions, or add a reference file it points to.
    - Create a new skill if the workflow is a separate job.
-   - Install a skill from a trusted source if the job is generic enough that one probably exists (`references/managing-roster.md`).
+   - Install a skill published by Anthropic, OpenAI, or Google if the job is generic enough that one probably exists (`references/managing-roster.md`).
    - Fix the-one-skill or its adapter if this skill caused the friction.
 4. **Check for contradictions (critical).** Note every rule or boundary of the skill that a change would override, so you can name it in your message. A skill marked protected in the adapter is never changed: offer a new skill instead.
 5. **Tell the user, briefly:** what went wrong, and what you'd change to fix it, in plain language, one line per change. If the user already said what they want, skip the analysis and just confirm the change. End with one question: apply all, some, or none.

@@ -21,7 +21,7 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Can I edit a skill? Does editing keep history? Does it drop files I did not send? | Apply |
 | Can I enable and disable skills? | Twin strategy, retire |
 | Can I rename or delete? (Record it, but do not rely on it.) | n/a |
-| Does the host have a skill directory, marketplace, or installer? | Find and install |
+| Does the host have a skill directory, marketplace, or installer? Who runs it, and does it show each skill's publisher? | Find and install (only Anthropic, OpenAI, and Google skills, per the policy) |
 | How many versions of a skill can be kept? | Step back |
 | Can the host run a check before file edits (for example Claude Code `PreToolUse` hooks)? | Guard |
 | Can it read an uploaded zip, or only text files? | Updating (zip or bundle) |
@@ -121,7 +121,6 @@ The adapter is the only file agentspace must have. Beyond it, you are free to or
 - `roster-notes.md`: what each skill is for, which ones overlap on purpose, and which are being phased out.
 - `<domain>.md`: standing rules for a field the user works in, shared across several of their skills.
 - `connectors/<name>.md`: how a connector behaves here and which of its tools are safe to rely on.
-- `sources.md`: skill sources the user trusts, for finding and installing skills.
 
 Conventions:
 - **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line. These headers let the index be rebuilt from the files alone.

@@ -30,23 +30,22 @@ The roster is every skill available on the host. All roster changes follow the s
 
 Run every operation that touches more than one skill (merge, split, rename, back to vanilla, installing several skills) as one **change set** (`references/undoing.md`), so it can be undone in one step.
 
-## Find and install a skill from a trusted source
+## Find and install a skill from Anthropic, OpenAI, or Google
 Use this when the user wants an existing skill rather than one written for them, or when a gap is generic enough that someone has probably already solved it.
 
 1. **Reflect first.** If the friction came from repeated corrections, name them. Say whether the fix could also be a small change to a skill the user already has. Offer both paths.
-2. **Search only trusted sources**, in this order:
-   1. the host's own skill or plugin directory
-   2. sources listed in `agentspace/sources.md`
-   3. official repositories from the vendor whose tool the skill covers
+2. **Search only skills that Anthropic, OpenAI, or Google publish** (policy invariant 11):
+   - their skill directories in their own products (Claude, ChatGPT, Gemini), counting only the skills the company itself publishes there
+   - their official repositories, such as the `anthropics`, `openai`, `google`, and `google-gemini` organizations on GitHub
 
-   Anything else is a community source. Name it as one, and include it only if the user asks for more. If `sources.md` doesn't exist yet, offer to create it with the sources the user trusts.
+   Check the publisher from where the skill actually lives (the organization or the directory's publisher field), never from what its name or description claims. No other source counts, even if the user names one or asks for more. If none of the three publishes a fitting skill, say so plainly, and offer to write one or to change a skill the user already has. If the user wants a skill from somewhere else, they can install it themselves, outside the-one-skill.
 3. **Compare candidates against the user's actual corrections.** Use a table: which corrections each candidate fixes, which it doesn't, who publishes it, and when it was last updated. Be honest when nothing covers everything, and say what would close the gap (a small local addition, a hook, or a rule).
 4. **Read before installing (policy invariant 11).** Read every file of the chosen skill. Summarize its instructions, scripts, network access, and anything it would run or install. Flag anything that reaches beyond its stated purpose.
 5. **Install as a new skill** after a yes. Show the files if asked. Install through the host's own installer if it has one, or else as a created skill (strategy A: `new <name> --from <folder>`, then `apply <name> --note "<source> <version>"`).
    - **Install it exactly as published first.** Any tweaks (the user's requests, or removing something you flagged) go in afterwards as a separate change, under the same change set. Then the kept versions are "as published" and "with tweaks", so "undo my tweaks" leaves the published skill in place, and an update from the source can be compared with what was installed. One yes covers both steps.
 6. **Verify.** Confirm the skill is listed and enabled. Tell the user it loads in a new session, and that retiring it undoes the install.
 
-Never install from a source the user hasn't approved. Never run a skill's scripts in order to evaluate it.
+Never install a skill that Anthropic, OpenAI, or Google didn't publish. Never run a skill's scripts in order to evaluate it.
 
 ## Merge several skills
 1. **Read every skill involved, including its references.** Also list protected skills that cover the same ground (for example a built-in skill for the same file type). Protected skills are never merged. The merged skill should defer to them, or say how it differs from them.
