@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: "Scenario to validate (all, empty-account, brownfield-opt-in, roster-orthogonality)"
+        description: "Scenario to validate (all, empty-account, brownfield-refine, roster-orthogonality)"
         required: false
         default: "all"
 
@@ -32,7 +32,7 @@ jobs:
           python3 scripts/lint_skills.py --verify-repo
           python3 scripts/test_lifecycle.py
 
-      - name: Simulate end-to-end scenario mechanics (empty-account, brownfield-opt-in, roster-orthogonality)
+      - name: Simulate end-to-end scenario mechanics (empty-account, brownfield-refine, roster-orthogonality)
         run: |
           python3 - <<'PY'
           import sys
@@ -41,6 +41,7 @@ jobs:
 
           sys.path.insert(0, "scripts")
           import lint_skills
+          import skillctl
           import test_lifecycle
 
           repo = Path(".").resolve()
@@ -55,23 +56,30 @@ jobs:
           assert res.passed, f"Scenario 1 lint failed: {res.errors + res.security_findings}"
           print("PASS Scenario 1 (empty-account): trusted source + security/lint gate passed.")
 
-          # 2. Scenario 2 (brownfield-opt-in): opt-in, ignore lock, fast-path single-skill edit + snapshot
+          # 2. Scenario 2 (brownfield-refine): lock, refine -> commit, revert restores the original exactly
           with tempfile.TemporaryDirectory() as tmp:
-              tmp_path = Path(tmp)
-              opt_in_skill = tmp_path / "opt-in-skill" / "SKILL.md"
-              ignored_skill = tmp_path / "ignored-skill" / "SKILL.md"
-              opt_in_skill.parent.mkdir()
-              ignored_skill.parent.mkdir()
-              opt_in_skill.write_text(test_lifecycle.VANILLA_SKILL_SAMPLE, encoding="utf-8")
-              ignored_skill.write_text(test_lifecycle.VANILLA_SKILL_SAMPLE, encoding="utf-8")
-
-              test_lifecycle.mount_integration_block(opt_in_skill)
-              test_lifecycle.set_ignore_lock(ignored_skill)
-
-              snap = test_lifecycle.save_snapshot(opt_in_skill, tmp_path / "snapshots", "opt-in-skill")
-              assert snap.is_file()
-              assert lint_skills.lint_skill_file(opt_in_skill).passed
-          print("PASS Scenario 2 (brownfield-opt-in): consent mounting, ignore lock, and snapshot verified.")
+              root = Path(tmp) / "skills"
+              for name in ("csv-inspector", "legacy-payroll-exporter"):
+                  (root / name).mkdir(parents=True)
+                  (root / name / "SKILL.md").write_text(
+                      test_lifecycle._skill_md(name), encoding="utf-8"
+                  )
+              ctl = skillctl.SkillCtl(root)
+              before = skillctl.tree_hash(root / "csv-inspector")
+              ctl.set_lock("legacy-payroll-exporter", True)
+              try:
+                  ctl.refine_start("legacy-payroll-exporter")
+                  raise AssertionError("locked skill was refined")
+              except skillctl.SkillCtlError:
+                  pass
+              draft = ctl.refine_start("csv-inspector")
+              md = draft / "SKILL.md"
+              md.write_text(md.read_text(encoding="utf-8") + "3. Handle utf-8-sig and ';' delimiters.\n", encoding="utf-8")
+              ctl.commit("csv-inspector", "European CSVs")
+              assert skillctl.tree_hash(root / "csv-inspector") != before
+              ctl.revert("csv-inspector")
+              assert skillctl.tree_hash(root / "csv-inspector") == before
+          print("PASS Scenario 2 (brownfield-refine): lock, refine/commit, and exact revert verified.")
 
           # 3. Scenario 3 (roster-orthogonality): detect overlap pair and verify bounded resolution
           pair_dir = repo / "evals" / "fixtures" / "overlap-pair"
