@@ -10,14 +10,20 @@ How it works
 * `use <skill> original` puts the original back; `use <skill> tuned` swaps the change back in.
 * A skill folder is only ever replaced when its contents match a copy in the store, so edits
   made by hand are never lost: `draft` starts from them and `apply` keeps them.
+* Files named `readonly-*` are never changed by `apply`; only the user edits them by hand.
+* A skill folder that is a git checkout keeps its `.git` across every swap.
+* `retire` moves a skill into the store (Claude Code stops loading it); `restore` brings it back.
 
 Commands
 --------
+    python3 scripts/skillctl.py --root <skills_folder> list [--json]
     python3 scripts/skillctl.py --root <skills_folder> status
     python3 scripts/skillctl.py --root <skills_folder> draft <skill>
     python3 scripts/skillctl.py --root <skills_folder> diff <skill>
     python3 scripts/skillctl.py --root <skills_folder> apply <skill>
     python3 scripts/skillctl.py --root <skills_folder> use <skill> original|tuned
+    python3 scripts/skillctl.py --root <skills_folder> retire <skill>
+    python3 scripts/skillctl.py --root <skills_folder> restore <skill>
 """
 
 from __future__ import annotations
@@ -36,6 +42,8 @@ from typing import Any, Sequence
 STORE_DIRNAME = "the-one-skill-store"
 SKIP = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 NAME_RE = re.compile(r"^[a-z0-9-]{1,64}$")
+READONLY_PREFIX = "readonly-"
+MAX_SKILL_LINES = 500
 
 
 class Refused(RuntimeError):
@@ -90,17 +98,41 @@ def folder_diff(old: Path, new: Path, old_label: str, new_label: str) -> str:
     return "".join(out)
 
 
-def frontmatter_name(folder: Path) -> str | None:
+def frontmatter(folder: Path) -> dict[str, str] | None:
+    """Top-level `key: value` pairs of SKILL.md's frontmatter (folded `>`/`|` values joined)."""
     md = folder / "SKILL.md"
     if not md.is_file():
         return None
     m = re.match(r"\A---\r?\n(.*?)\r?\n---", md.read_text(encoding="utf-8"), re.DOTALL)
     if not m:
         return None
+    out: dict[str, str] = {}
+    key = None
     for line in m.group(1).splitlines():
-        if line.startswith("name:"):
-            return line.split(":", 1)[1].strip().strip("'\"")
-    return None
+        km = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+        if km:
+            key, val = km.group(1), km.group(2).strip()
+            out[key] = "" if val in (">", "|", ">-", "|-") else val.strip("'\"")
+        elif key and line.startswith((" ", "\t")):
+            out[key] = (out[key] + " " + line.strip()).strip()
+    return out
+
+
+def frontmatter_name(folder: Path) -> str | None:
+    fm = frontmatter(folder)
+    return fm.get("name") if fm else None
+
+
+def readonly_changes(old: Path, new: Path) -> list[str]:
+    """Paths of `readonly-*` files that differ, appear, or disappear between two folders."""
+    a, b = files_of(old), files_of(new)
+    out = []
+    for rel in sorted(set(a) | set(b)):
+        if not Path(rel).name.startswith(READONLY_PREFIX):
+            continue
+        if rel not in a or rel not in b or a[rel].read_bytes() != b[rel].read_bytes():
+            out.append(rel)
+    return out
 
 
 class SkillCtl:
@@ -175,12 +207,19 @@ class SkillCtl:
         if folder_hash(src) != digest:
             raise Refused(f"The stored copy {src} is missing or damaged; nothing was changed.")
         work = self.sdir(name) / "work"
-        shutil.rmtree(work, ignore_errors=True)
-        self._copy(src, work / "incoming")
-        if current is not None:
-            shutil.move(str(installed), str(work / "outgoing"))  # a copy of it is in the store or the draft
-        shutil.move(str(work / "incoming"), str(installed))
-        shutil.rmtree(work, ignore_errors=True)
+        hold = self.sdir(name) / "git-hold"  # a git checkout's .git waits here during the swap
+        if (installed / ".git").exists() and not hold.exists():
+            shutil.move(str(installed / ".git"), str(hold))
+        try:
+            shutil.rmtree(work, ignore_errors=True)
+            self._copy(src, work / "incoming")
+            if installed.exists():
+                shutil.move(str(installed), str(work / "outgoing"))  # a copy of it is in the store or the draft
+            shutil.move(str(work / "incoming"), str(installed))
+            shutil.rmtree(work, ignore_errors=True)
+        finally:
+            if hold.exists() and installed.is_dir() and not (installed / ".git").exists():
+                shutil.move(str(hold), str(installed / ".git"))
 
     # ----- commands -----
     def draft(self, name: str) -> Path:
@@ -222,6 +261,13 @@ class SkillCtl:
         fm_name = frontmatter_name(d)
         if fm_name != name:
             raise Refused(f"The draft's frontmatter `name` must stay `{name}` (found {fm_name!r}).")
+        if self.installed(name).is_dir():
+            locked = readonly_changes(self.installed(name), d)
+            if locked:
+                raise Refused(
+                    f"The draft changes read-only file(s): {', '.join(locked)}. Only the user edits "
+                    "`readonly-*` files, by hand. Undo those changes in the draft; nothing was changed."
+                )
         digest = self._store_version(name, d)
         # Safe to replace: a stored version, the folder the draft started from, or the draft itself
         # (if an earlier `apply` was interrupted, running it again finishes the job).
@@ -233,8 +279,8 @@ class SkillCtl:
         shutil.rmtree(d, ignore_errors=True)
         self._prune(name, st)
         warnings = []
-        if len((self.installed(name) / "SKILL.md").read_text(encoding="utf-8").splitlines()) > 500:
-            warnings.append("SKILL.md is over 500 lines; consider moving detail into references/.")
+        if len((self.installed(name) / "SKILL.md").read_text(encoding="utf-8").splitlines()) > MAX_SKILL_LINES:
+            warnings.append(f"SKILL.md is over {MAX_SKILL_LINES} lines; consider moving detail into references/.")
         return warnings
 
     def use(self, name: str, which: str) -> None:
@@ -254,17 +300,90 @@ class SkillCtl:
             if p.name not in keep:
                 shutil.rmtree(p, ignore_errors=True)
 
+    def retire(self, name: str) -> Path:
+        """Move a skill out of the skills folder into the store, intact. `restore` undoes it."""
+        installed = self.installed(name)
+        if installed.is_symlink():
+            raise Refused(f"`{name}` is a link to {installed.resolve()}; remove the link by hand instead.")
+        if not (installed / "SKILL.md").is_file():
+            raise Refused(f"No skill `{name}` in {self.root}.")
+        dest = self.sdir(name) / "retired"
+        if dest.exists():
+            raise Refused(f"A retired copy of `{name}` already exists at {dest}; `restore` it first or move it away.")
+        digest = folder_hash(installed)
+        self.sdir(name).mkdir(parents=True, exist_ok=True)
+        shutil.move(str(installed), str(dest))  # moves everything, .git included
+        if folder_hash(dest) != digest:
+            raise Refused(f"The retired copy at {dest} does not match; check it before doing anything else.")
+        return dest
+
+    def restore(self, name: str) -> None:
+        src = self.sdir(name) / "retired"
+        if not src.is_dir():
+            raise Refused(f"`{name}` is not retired.")
+        if self.installed(name).exists():
+            raise Refused(f"`{name}` already exists in {self.root}; nothing was changed.")
+        digest = folder_hash(src)
+        shutil.move(str(src), str(self.installed(name)))
+        if folder_hash(self.installed(name)) != digest:
+            raise Refused(f"The restored `{name}` does not match its retired copy; check it.")
+
     def status(self) -> list[tuple[str, str]]:
         rows = []
-        for p in sorted(self.store.glob("*/state.json")) if self.store.is_dir() else []:
-            st = json.loads(p.read_text(encoding="utf-8"))
-            installed = self.which(st["name"], st)
-            note = installed
-            if installed == "original" and st.get("tuned"):
-                note += " (tuned version saved)"
-            if (p.parent / "draft").is_dir():
-                note += " (draft in progress)"
-            rows.append((st["name"], note))
+        dirs = sorted(p for p in self.store.iterdir() if p.is_dir()) if self.store.is_dir() else []
+        for sd in dirs:
+            st = self.state(sd.name)
+            retired = (sd / "retired").is_dir()
+            if st is None and not retired:
+                continue
+            notes = []
+            if st is not None:
+                installed = self.which(sd.name, st)
+                notes.append(installed)
+                if installed == "original" and st.get("tuned"):
+                    notes.append("(tuned version saved)")
+                if (sd / "draft").is_dir():
+                    notes.append("(draft in progress)")
+            if retired:
+                notes.append("retired" if st is None else "(retired copy saved)")
+            rows.append((sd.name, " ".join(notes)))
+        return rows
+
+    def roster(self) -> list[dict[str, Any]]:
+        """Every skill in the skills folder with its state and any problems found."""
+        rows = []
+        for p in sorted(self.root.iterdir()):
+            if not p.is_dir() or p.name.startswith("."):
+                continue
+            issues: list[str] = []
+            fm = frontmatter(p)
+            if not (p / "SKILL.md").is_file():
+                issues.append("no SKILL.md")
+            elif fm is None:
+                issues.append("no frontmatter")
+            fm = fm or {}
+            fm_name, desc = fm.get("name", ""), fm.get("description", "")
+            if fm and not fm_name:
+                issues.append("no name")
+            elif fm_name and fm_name != p.name:
+                issues.append(f"name `{fm_name}` differs from folder")
+            if not NAME_RE.match(p.name):
+                issues.append("invalid folder name (use a-z, 0-9, -)")
+            if fm and not desc:
+                issues.append("no description")
+            elif desc and not re.search(r"\buse (it )?(when|for)\b", desc, re.IGNORECASE):
+                issues.append("description says nothing about when to use it")
+            if (p / "SKILL.md").is_file():
+                n = len((p / "SKILL.md").read_text(encoding="utf-8").splitlines())
+                if n > MAX_SKILL_LINES:
+                    issues.append(f"SKILL.md has {n} lines (> {MAX_SKILL_LINES})")
+            st = self.state(p.name)
+            rows.append({
+                "name": p.name,
+                "state": "linked" if p.is_symlink() else (self.which(p.name, st) if st else "unmanaged"),
+                "description": desc,
+                "issues": issues,
+            })
         return rows
 
 
@@ -274,7 +393,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--store", help=f"Store folder (default: next to the skills folder, {STORE_DIRNAME}/)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
-    for cmd in ("draft", "diff", "apply"):
+    sub.add_parser("list").add_argument("--json", action="store_true", help="Machine-readable output")
+    for cmd in ("draft", "diff", "apply", "retire", "restore"):
         sub.add_parser(cmd).add_argument("skill")
     p = sub.add_parser("use")
     p.add_argument("skill")
@@ -285,6 +405,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         if a.cmd == "status":
             rows = ctl.status()
             print("\n".join(f"{n:32} {s}" for n, s in rows) if rows else "No skills changed by the-one-skill yet.")
+        elif a.cmd == "list":
+            rows = ctl.roster()
+            if a.json:
+                print(json.dumps(rows, indent=2))
+            elif not rows:
+                print("No skills found.")
+            for r in rows if not a.json else []:
+                desc = r["description"] if len(r["description"]) <= 70 else r["description"][:67] + "..."
+                print(f"{r['name']:32} {r['state']:10} {desc}")
+                for issue in r["issues"]:
+                    print(f"{'':32} ! {issue}")
+        elif a.cmd == "retire":
+            print(f"Retired `{a.skill}` to {ctl.retire(a.skill)}. `restore {a.skill}` brings it back.")
+        elif a.cmd == "restore":
+            ctl.restore(a.skill)
+            print(f"`{a.skill}` restored.")
         elif a.cmd == "draft":
             print(f"Draft ready: {ctl.draft(a.skill)}\nEdit it there, show `diff`, and `apply` after approval.")
         elif a.cmd == "diff":

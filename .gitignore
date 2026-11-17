@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 the-one-skill-store/
+# Adapters are written on each user's own system and may name their private skills and connectors.
+references/agentspace/*
+!references/agentspace/.gitkeep
