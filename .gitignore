@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 the-one-skill-store/
-# Adapters are written on each user's own system and may name their private skills and connectors.
+# Agentspace is written on each user's own system and may name their private skills and connectors.
+# Only the empty index ships; your filled-in copy shows as modified in git: don't commit it upstream.
 references/agentspace/*
-!references/agentspace/.gitkeep
+!references/agentspace/index.md
