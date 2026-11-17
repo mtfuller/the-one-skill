@@ -21,6 +21,8 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Can I edit a skill? Does editing keep history? Does it drop files I did not send? | Apply |
 | Can I enable and disable skills? | Twin strategy, retire |
 | Can I rename or delete? (Record it, but do not rely on it.) | n/a |
+| Does the host have a skill directory, marketplace, or installer? | Find and install |
+| How many versions of a skill can be kept? | Step back |
 | Must skill names be unique? | Twin naming |
 | Can I reach the skills folder on a filesystem? | Store & swap |
 | Can I run Python 3, and does it see the same files as the skills folder? | `scripts/skillctl.py` |
@@ -40,7 +42,7 @@ Use the first strategy that fits.
 
 Before the first change under C or D, tell the user what their part is. Invariant 1 depends on it.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|tuned`, `retire`, `restore`. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. Tell the user where it is, and for a project folder ask whether to commit it or ignore it.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`. The store keeps the original plus the last 5 applied versions of each skill. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. Tell the user where it is, and for a project folder ask whether to commit it or ignore it.
 
 ## 4. Write the adapter
 Keep it under about 80 lines. Record facts and the exact steps to follow. Leave the method out: it is already in `SKILL.md`.
@@ -63,8 +65,9 @@ Strategy: <A|B|C|D>: <one line on how originals are kept>
 ## Operations
 - **List roster:** ...
 - **Improve:** draft → show diff → yes → apply → verify by ...
-- **Revert / switch back:** ...
+- **Revert / step back / switch back:** ... (which versions are kept: ...)
 - **Create:** ...
+- **Find and install:** host directory or installer, if any: ...
 - **Retire / restore:** ...
 - **Change the-one-skill itself:** ...
 
@@ -88,7 +91,8 @@ The adapter is the only file agentspace must have. Beyond it, you are free to or
 - `roster-notes.md`: what each skill is for, which ones overlap on purpose, and which are being phased out.
 - `<domain>.md`: standing rules for a field the user works in, shared across several of their skills.
 - `connectors/<name>.md`: how a connector behaves here and which of its tools are safe to rely on.
-- `history.md`: a short log of applied changes and why, so later reflections can build on them.
+- `history.md` (standard: created with the first change): a log of applied changes and change sets, with how to undo each one. Format in `references/managing-roster.md`.
+- `sources.md`: skill sources the user trusts, for finding and installing skills.
 
 Conventions:
 - **Start each file with its purpose** on one line (`Purpose: ...`). Only adapters have a `Detect:` line. These headers let the index be rebuilt from the files alone.

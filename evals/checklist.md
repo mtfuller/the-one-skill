@@ -33,3 +33,9 @@ Run these in a real session on each host before a release. Each line is pass/fai
 - [ ] **One round:** a reflection with a conflict and an adapter fix → a single message ending in one question. The conflict must be confirmed by name or number.
 - [ ] **Store notice:** first change in a project → it says where `the-one-skill-store/` is and asks whether to commit or ignore it.
 - [ ] **Permission prompts (Claude Code):** before applying, it says how many write prompts to expect. Declining one stops the change, with no workaround.
+
+## Use cases
+- [ ] **Find and install:** after repeated corrections, *"find me a verified skill for this"* → it names the corrections, searches trusted sources only, compares candidates against the corrections, reads every file before installing, and installs only after a yes. Retiring the skill undoes the install.
+- [ ] **Combine several:** *"combine my PPTX proposal skills"* → it names each conflicting rule with a default, accounts for the built-in pptx skill, applies one change set, records it in `history.md`, and *"undo the merge"* reverses it in one step.
+- [ ] **Back to vanilla:** after several changes, a retire, and a created skill → every original is back, the retired skill is restored, the created skill is retired, and hand-edited skills are asked about. the-one-skill is reverted last, only if you choose.
+- [ ] **Remove one rule:** *"remove the rule you added to the adapter"* → only that rule goes (`use previous` or a new change). The adapter and other notes stay, and `history` shows the version with the rule is still kept.

@@ -28,6 +28,7 @@ Every version of the-one-skill, and every agentspace file, keeps all of these. A
 8. **Probes are safe.** Learning what a host can do never puts a user's real skills at risk. Write abilities are tested only on a throwaway skill, and only with the user's permission.
 9. **Agentspace holds no secrets.** Its files describe abilities, rules, and preferences. They contain no tokens or passwords, and only the personal details the user explicitly asked to keep.
 10. **Nothing is deleted.** Retiring a skill is reversible. Permanent deletion is left to the user in the host's own settings.
+11. **Outside skills are read before they are installed.** Every file of a skill from outside the user's system (a directory, marketplace, repository, or download) is read before it is installed. The user gets a summary of what it instructs, runs, and reaches over the network. A skill is installed only from a source the user approved, and its scripts are never run in order to evaluate it.
 
 ## 3. Changing the-one-skill (self-change procedure)
 

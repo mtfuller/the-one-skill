@@ -21,10 +21,27 @@ It reviews every installed skill and flags:
 - broken structure
 - workflows that recur but no skill covers
 
-It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want.
+It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
+
+### 🏹 Find and install a skill: *seeking aid from trusted realms*
+When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill in sources you trust:
+1. your host's directory
+2. sources listed in your `sources.md`
+3. the vendor's official repositories
+
+It compares the candidates against exactly what went wrong, and says plainly if none covers everything. Before installing a skill, it reads **every file** and tells you what the skill instructs, runs, and reaches over the network.
 
 ### 📜 Never lose the original: *the old ways are kept*
-The first change to any skill saves the original untouched. Say *"revert"* and it comes back exactly as it was. Say *"bring the change back"* and the improved version returns. Edits you made by hand are never overwritten.
+The first change to any skill saves the original untouched, along with its last five versions. You can undo as much or as little as you want:
+- *"Remove the rule you added"* steps back one version, or removes just that rule. It never wipes everything.
+- *"Revert"* brings back one skill's original exactly as it was. *"Bring the change back"* returns the improved version.
+- *"Back to vanilla"* returns every skill as it was before the-one-skill touched it:
+  - originals are put back
+  - retired skills are restored
+  - skills it created are retired
+  - for skills you edited by hand, it asks first
+
+Edits you made by hand are never overwritten.
 
 ### 🧭 Adapts to any host: *learning the lay of each land*
 It carries no maps for particular hosts. Instead it carries a **framework for drawing them**. On a new host it:
@@ -46,13 +63,14 @@ If the land turns out different from the map, it stops, shows you what it found,
 `references/agentspace/` is its own book about you. Next to the host maps it can keep preferences, roster notes, domain rules, connector notes, and a history of past changes: anything that would otherwise be forgotten between sessions. `index.md`, the book's table of contents, is read at the start of every session, so it can see at a glance what it already knows. Every new page is proposed to you first.
 
 ### ⚖️ Improves itself, within limits it cannot change
-the-one-skill can propose changes to its own instructions and maps, using the same diff, approval and revert as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has ten invariants. Among them:
+the-one-skill can propose changes to its own instructions and maps, using the same diff, approval and revert as any other skill. What it may never become is set by `references/readonly-self-improvement.md`, a policy it can't edit. The policy has eleven invariants. Among them:
 - originals are kept
 - nothing changes without approval
 - no action is quietly swapped for another
 - results are checked, not trusted
 - protected things stay untouched
 - nothing is deleted
+- skills from outside are read in full before they're installed
 
 Notes in agentspace can make these rules stricter, but never looser. Only you can change the policy, by hand.
 
@@ -68,7 +86,9 @@ On its first run it finds an empty `agentspace/index.md`, recognizes a fresh ins
 - *"Reflect on this session."* / *"That skill got the format wrong again, fix it."*
 - *"Make a skill for this; I do it every week."*
 - *"Review my skills. Which ones overlap?"* / *"Merge these two."* / *"Retire the old report skill."*
-- *"Put that skill back how it was."* / *"Actually, bring the change back."*
+- *"Find me a trusted Terraform skill; I'm tired of correcting you."*
+- *"Combine my PPTX proposal skills into one."*
+- *"Put that skill back how it was."* / *"Remove the rule you added to the adapter."* / *"Take everything back to vanilla."*
 - *"Remember that I always want options as a table."*
 - *"Improve the-one-skill: it asked too many questions."*
 
@@ -93,11 +113,13 @@ python3 scripts/skillctl.py --root <skills_folder> <command>
 | Command | What it does |
 | :--- | :--- |
 | `list [--json]` | Every installed skill, its state, and any structural problems |
-| `status` | Skills the-one-skill manages: `original`, `tuned`, `edited`, or `retired` |
+| `status` | Skills the-one-skill manages: `original`, `tuned`, `earlier`, `edited`, `retired`, or created |
 | `draft <skill>` | Saves the original (first time only) and opens a draft in the store |
 | `diff <skill>` | Shows the draft against the installed skill |
 | `apply <skill>` | Installs the draft (after you approve the diff) |
-| `use <skill> original\|tuned` | Reverts, or switches the improvement back in |
+| `use <skill> original\|previous\|tuned\|<version>` | Reverts, steps back one version, or switches the improvement back in |
+| `history <skill>` | The kept versions: the original plus the last 5 applied |
+| `new <skill> [--from <folder>]` | Starts a skill that the-one-skill creates or installs, so it's tracked (going back to vanilla retires it) |
 | `retire <skill>` / `restore <skill>` | Moves a skill out of the skills folder and back, intact |
 
 Built-in safeguards:
