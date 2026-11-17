@@ -90,7 +90,7 @@ check() {  # on-disk checks after the follow-up; prints PASS/FAIL lines
       ;;
     18-update)
       local T="$K/the-one-skill"
-      ok "now on 1.1.0" "grep -qx 1.1.0 '$T/VERSION'"
+      ok "now on 1.1.0" "grep -qx 1.1.0 '$T/VERSION.md'"
       ok "release change in (90 days rule)" "grep -q '90 days' '$T/references/managing-roster.md'"
       ok "release file added (naming.md)" "[ -f '$T/references/naming.md' ]"
       ok "local improvement kept" "grep -q 'Local improvement' '$T/references/improving.md'"

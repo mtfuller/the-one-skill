@@ -2,6 +2,11 @@
 
 Plain-language notes for each release. the-one-skill reads these when you ask it to update itself.
 
+## 1.0.1
+- Release downloads contain only the files the skill needs, all `.md` or `.py`, so Gemini accepts the upload. Before, the extensionless `VERSION` file was rejected.
+- The version now lives in `VERSION.md`, and the license in `LICENSE.md`.
+- Updating from a release leaves files that aren't part of a release alone, such as tests or your own notes.
+
 ## 1.0.0
 First release.
 - Reflects on a session and fixes the skills that fell short. It describes each change in a sentence or two, asks one yes, and keeps every original.

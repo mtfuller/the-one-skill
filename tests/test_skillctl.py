@@ -363,13 +363,13 @@ class SkillCtlTest(unittest.TestCase):
         rel = self.tmp / f"release-{version}"
         shutil.rmtree(rel, ignore_errors=True)
         shutil.copytree(self.ctl.version("csv-inspector", self.ctl.state("csv-inspector")["original"]), rel)
-        (rel / "VERSION").write_text(version + "\n")
+        (rel / "VERSION.md").write_text(version + "\n")
         if edit:
             edit(rel)
         return rel
 
     def _setup_installed_release(self) -> None:
-        (self.skill / "VERSION").write_text("1.0.0\n")
+        (self.skill / "VERSION.md").write_text("1.0.0\n")
         (self.skill / "references" / "readonly-policy.md").write_text("Rule v1.\n")
         (self.skill / "references" / "agentspace").mkdir()
         (self.skill / "references" / "agentspace" / "index.md").write_text("# index (empty)\n")
@@ -411,7 +411,7 @@ class SkillCtlTest(unittest.TestCase):
         text = (self.skill / "SKILL.md").read_text()
         self.assertIn("local tweak", text)
         self.assertIn("New step from the release", text)
-        self.assertEqual((self.skill / "VERSION").read_text(), "1.1.0\n")
+        self.assertEqual((self.skill / "VERSION.md").read_text(), "1.1.0\n")
         self.assertEqual((self.skill / "references" / "readonly-policy.md").read_text(), "Rule v2.\n")
         self.assertEqual((self.skill / "references" / "agentspace" / "claude-code.md").read_text(), "Detect: here\n")
         self.assertIn("claude-code.md", (self.skill / "references" / "agentspace" / "index.md").read_text())
@@ -424,7 +424,7 @@ class SkillCtlTest(unittest.TestCase):
             (rel / "references" / "new-ref.md").write_text("New reference, revised.\n")
         report = self.ctl.upgrade("csv-inspector", self._release("1.2.0", edit2), keep=["references/agentspace"])
         self.assertEqual(report["conflicts"], [])
-        self.assertEqual(report["from_release"], ["VERSION", "references/new-ref.md"])
+        self.assertEqual(report["from_release"], ["VERSION.md", "references/new-ref.md"])
 
     def test_upgrade_conflict_must_be_resolved(self) -> None:
         self._setup_installed_release()
@@ -463,7 +463,7 @@ class SkillCtlTest(unittest.TestCase):
             self.ctl.upgrade("csv-inspector", self._release("1.1.0", edit), keep=["references/agentspace"])
 
     def test_bundle_round_trip_without_private_agentspace(self) -> None:
-        (self.skill / "VERSION").write_text("1.2.3\n")
+        (self.skill / "VERSION.md").write_text("1.2.3\n")
         (self.skill / "references" / "agentspace").mkdir()
         (self.skill / "references" / "agentspace" / "index.md").write_text("# index\n")
         (self.skill / "references" / "agentspace" / "private.md").write_text("secret\n")
@@ -480,7 +480,29 @@ class SkillCtlTest(unittest.TestCase):
         self.assertFalse((out / "references" / "agentspace" / "private.md").exists())
         (self.skill / "tests").mkdir()
         (self.skill / "tests" / "test_x.py").write_text("pass\n")
-        self.assertIn("=== FILE: tests/test_x.py ===", bundle.pack(self.skill))  # releases are whole folders
+        (self.skill / "NOTES").write_text("no extension\n")
+        text = bundle.pack(self.skill)
+        self.assertNotIn("tests/test_x.py", text)  # a release is the package, not the dev tree
+        self.assertNotIn("=== FILE: NOTES ===", text)
+        z = self.tmp / "pkg.zip"
+        names = bundle.make_zip(self.skill, z)
+        self.assertIn("the-one-skill/SKILL.md", names)
+        self.assertTrue(all(n.endswith((".md", ".py")) for n in names))
+        self.assertNotIn("the-one-skill/references/agentspace/private.md", names)
+
+    def test_upgrade_from_a_package_keeps_files_outside_it(self) -> None:
+        self._setup_installed_release()
+        for rel in ("tests/test_x.py", ".github/workflows/t.yml", "LICENSE"):
+            (self.skill / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.skill / rel).write_text("dev\n")
+        d = self.ctl.draft("csv-inspector")  # make them part of the installed history
+        self.ctl.apply("csv-inspector")
+        pkg = self._release("1.1.0")  # a package: no tests, no CI, no LICENSE
+        report = self.ctl.upgrade("csv-inspector", pkg, keep=["references/agentspace"])
+        self.assertEqual(report["removed"], [])
+        self.ctl.apply("csv-inspector")
+        for rel in ("tests/test_x.py", ".github/workflows/t.yml", "LICENSE"):
+            self.assertTrue((self.skill / rel).is_file(), rel)
 
     def test_default_store_location(self) -> None:
         proj = self.tmp / "proj"

@@ -232,8 +232,28 @@ def merge3(base: list[str], mine: list[str], theirs: list[str]) -> tuple[list[st
     return out + base[pos:], conflict
 
 
+RELEASE_EXTS = (".md", ".py")
+RELEASE_ROOT_FILES = {"SKILL.md", "README.md", "CHANGELOG.md", "VERSION.md", "LICENSE.md"}
+
+
+def in_release(rel: str) -> bool:
+    """Whether a path belongs in a release package: what a host needs to run the skill.
+
+    Every file has an extension skill hosts accept (.md or .py). Development files (tests,
+    evals, CI, release tooling) and private agentspace notes are not part of a release, so an
+    upgrade from a package never treats them as removed."""
+    parts = rel.split("/")
+    if not rel.endswith(RELEASE_EXTS):
+        return False
+    if len(parts) == 1:
+        return rel in RELEASE_ROOT_FILES
+    if parts[0] == "references":
+        return parts[1] != "agentspace" or rel == "references/agentspace/index.md"
+    return parts[0] == "scripts" and len(parts) == 2 and rel.endswith(".py")
+
+
 def _version_tuple(folder: Path) -> tuple[int, ...] | None:
-    f = folder / "VERSION"
+    f = folder / "VERSION.md" if (folder / "VERSION.md").is_file() else folder / "VERSION"
     try:
         return tuple(int(x) for x in f.read_text(encoding="utf-8").strip().split("."))
     except (OSError, ValueError):
@@ -442,6 +462,10 @@ class SkillCtl:
                 if l is not None:
                     put(rel, l)
                     report["kept_paths"].append(rel)
+                continue
+            if not in_release(rel):  # not part of a release package (tests, CI, your own notes)
+                if l is not None:
+                    put(rel, l)
                 continue
             if Path(rel).name.startswith(READONLY_PREFIX):
                 if u == b or u == l:

@@ -7,7 +7,7 @@ Use this when the user gives you a new release of the-one-skill and asks you to 
    - Folder: use it.
    - Zip: unpack it if you can run code; otherwise ask for the bundle file instead.
    - Bundle: run `python3 scripts/bundle.py unpack <bundle> <folder>` if you can run code. Otherwise read the files from the bundle directly: each one sits between `=== FILE: <path> ===` and `=== END FILE: <path> ===`.
-2. **Check it.** Its `SKILL.md` must have `name: the-one-skill`. Its `VERSION` must be newer than yours, unless the user asks for an older one. Read every file, as for any outside skill (policy invariant 11), and read its `CHANGELOG.md`.
+2. **Check it.** Its `SKILL.md` must have `name: the-one-skill`. Its `VERSION.md` must be newer than yours, unless the user asks for an older one. Read every file, as for any outside skill (policy invariant 11), and read its `CHANGELOG.md`.
 3. **Merge three ways:**
    - **Base:** the release installed last. On strategy A the store tracks it. On other hosts it is the original you kept, unless the adapter records a later release.
    - **Yours:** the installed copy.
@@ -19,6 +19,8 @@ Use this when the user gives you a new release of the-one-skill and asks you to 
    - **`references/agentspace/` is kept exactly as installed**, including `index.md`.
    - **Read-only files:** taken exactly as published, or kept if the release didn't change them. If the user hand-edited one and the release changed it too, stop: that is theirs to reconcile, by hand.
    - **Both changed the same lines:** resolve it yourself only when the intent is clear (for example, the release reworded a line that the user tweaked for the same reason). Otherwise, name it in your message.
+
+   A release is a **package**: `SKILL.md`, `README.md`, `CHANGELOG.md`, `VERSION.md`, `LICENSE.md`, `references/`, and `scripts/*.py`. Files outside it (tests, evals, CI, your notes) aren't in a release, so leave them as installed and never treat them as removed.
 
    On strategy A, run `skillctl.py upgrade the-one-skill --from <folder> --keep references/agentspace`. It does this merge into a draft and lists what came from where. Conflicts appear in the draft as `<<<<<<< yours (installed)` / `>>>>>>> new release` blocks. Edit the draft to resolve them, never the installed files.
 4. **Tell the user in a few plain lines:** the version change, what's new (from the changelog, in plain words), which of their own improvements stay, anything you couldn't merge, and any change to the read-only policy, called out on its own line. End with one yes. Show the full diff if they ask.
