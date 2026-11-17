@@ -26,11 +26,14 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Can the host run a check before file edits (for example Claude Code `PreToolUse` hooks)? | Guard |
 | Can it read an uploaded zip, or only text files? | Updating (zip or bundle) |
 | Must skill names be unique? | Twin naming |
-| Can I reach the skills folder on a filesystem? | Store & swap |
+| Can I reach the skills folder on a filesystem? Does a change there last into a new session? | Store & swap |
 | Can I run Python 3, and does it see the same files as the skills folder? | `scripts/skillctl.py` |
+| With no skill tools, does the host have its own way to write skills (a built-in skill-creator, a "create with chat" mode)? Can it update an existing skill, and does it keep every file? | Authoring workflow (§3) |
 | Which skills, connectors, or plugins are managed by someone else (organization, plugin, platform)? | Protected list |
 
 Use read-only probes first. If an answer can only be found by writing, ask the user first, then use a throwaway skill named `tos-probe`. Clean it up afterwards (disable it if the host cannot delete).
+
+**Writable is not the same as saved.** Code may see a skills folder that is a copy made for this session. Signs of a copy: the folder sits on an overlay or temporary mount (check `mount` and `df`), or skill folders are named by generated IDs instead of skill names. Before you rely on a folder for strategy A, confirm that something written outside the skills folder in an earlier session (such as the store) is still there in a new one. If you can't confirm it, treat the folder as a copy: it can't keep originals or apply changes.
 
 ## 3. Choose a strategy
 Use the first strategy that fits.
@@ -43,6 +46,19 @@ Use the first strategy that fits.
 | **D. Hand-off** | No write abilities | Unchanged, because the user makes every change | Give the user the full files and where they go | The user puts the old files back |
 
 Before the first change under C or D, tell the user what their part is. Invariant 1 depends on it.
+
+**Hand-off files.** Under D, give the user two downloads for each skill you change: a zip of the skill exactly as installed (their backup, made before anything else), and a zip of the new version. Put every file of the skill in each zip, under a top folder with the skill's name. Tell the user to keep the backup, and how to upload the new version so it replaces the skill instead of adding a second one with the same name. After they upload it, check in a new session that the change is in effect.
+
+### Authoring workflow: when you have no skill tools
+Some hosts give the model no tools to write skills but have their own way to author them: a built-in skill-creator skill, or a "create with chat" mode. That workflow can be this host's write ability. Take stock of it like any tool, with a `tos-probe` skill and the user's permission. Check whether it can create a skill, update an existing one in place, keep every file you send, and keep history. Then pick the strategy from what it verifiably does: B if it can create and the user can enable and disable skills, C if it can only edit in place, and D if it can't update a skill or drops files.
+
+When you use it:
+- **You draft, it saves.** Write the full new version yourself first, as for any change. Give it the whole skill folder word for word, and ask it to save that and nothing else. Never ask it to write or improve the skill for you.
+- **Your rules come first.** It may follow its own instructions: rewriting or restructuring, renaming, dropping files, or saving before asking. If it would do any of that, don't use it for that step. Fall back to D.
+- **It is protected.** It belongs to the platform. Use it; never change it.
+- **Same approval.** The user's one yes covers the change. If the workflow asks its own question, that is the host's prompt: say so before you start, as with permission prompts.
+- **Verify.** Read the saved skill back, file by file. Then confirm in a new session that the host loads the new version.
+- **Record it** in the adapter, with the exact steps that worked.
 
 **Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder>]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`, `move-store [--to <dir>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
 
@@ -146,6 +162,7 @@ Rules:
 - **False reports.** A tool said "updated" when nothing changed, or claimed an ability it did not have. List or read back after every action.
 - **Name collisions.** When a name is taken, hosts may offer to "update the existing skill". Choose a different name instead.
 - **Sandboxed code.** Code can run in a sandbox that cannot see the skills, or that sees copies of them. Stage files explicitly, or use strategy B.
+- **Writable copies.** ChatGPT showed each skill to code as a writable folder named by an ID (`remote-skills/skill-<id>`) on an overlay mount, and the model had no tool to save skills. Nothing showed that writes there reach the installed skill. `skillctl.py apply` refused only because the folder name didn't match the skill's name. Without that check it could have reported a change that was never saved. Confirm in a new session that a change lasts (§2) before choosing A.
 - **Stale loading.** Changed skills often load only in a new session.
 - **Store inside the skills folder.** The host then loads stored copies as extra skills. Keep the store outside.
 - **Permission policies that block commands.** Besides prompts, a host can block commands outright with an automatic policy (for example Claude Code's auto mode), which reads a script that replaces skill folders as destructive. When you build the adapter, check whether such a policy is active. If it is, offer the user the exact allow rule for the helper before the first change, for example `Bash(python3 /abs/path/to/the-one-skill/scripts/skillctl.py:*)` in the project's `.claude/settings.local.json`. Record the rule in the adapter. If a command is still blocked, stop and give the user the exact command to run themselves. Never look for another route.

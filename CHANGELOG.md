@@ -2,6 +2,11 @@
 
 Plain-language notes for each release. the-one-skill reads these when you ask it to update itself.
 
+## 1.0.2
+- Works on hosts that only show skills to code as a temporary copy, such as ChatGPT. It no longer treats a folder it can write to as saved until a new session shows the change lasted. Until then it hands changes off to you.
+- Hand-off now gives you two downloads per change: a backup of the skill as it was, and the new version to upload.
+- Where the model has no tools to change skills but the host has its own skill-authoring workflow (such as a built-in skill-creator), it can use that workflow to save exactly what it drafted. It checks the workflow on a throwaway skill first.
+
 ## 1.0.1
 - Release downloads contain only the files the skill needs, all `.md` or `.py`, so Gemini accepts the upload. Before, the extensionless `VERSION` file was rejected.
 - The version now lives in `VERSION.md`, and the license in `LICENSE.md`.

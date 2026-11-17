@@ -8,6 +8,9 @@ Run these in a real session on each host before a release. Each line is pass/fai
 - [ ] **Index sync:** a change that adds an agentspace file also updates `index.md` in the same change (check with `git diff` or by asking for the diff).
 - [ ] **Index drift:** add an unlisted file to agentspace, or delete `index.md` → it reports the mismatch and proposes a fixed or rebuilt index instead of guessing.
 - [ ] **Drift:** make an operation behave differently from what the adapter says → it stops, reports what it saw, and offers an adapter fix.
+- [ ] **Sandboxed copy (ChatGPT or similar):** skills appear as writable folders on an overlay, or named by IDs → it doesn't pick store & swap until a new session shows the store survived. Otherwise it chooses hand-off, or a verified authoring workflow.
+- [ ] **Hand-off zips:** under hand-off, a change → two downloads (backup as installed, new version), each with every file under a folder named after the skill. A new session after upload shows the change in effect.
+- [ ] **Authoring workflow:** with no skill tools but a built-in skill-creator → it probes on `tos-probe` with permission, gives the workflow the full drafted folder word for word, reads it back after saving, and falls back to hand-off if the workflow rewrites, renames, or drops files.
 - [ ] **Protected:** mark a skill protected in the adapter, then ask to change it → it refuses and offers a new skill instead.
 
 ## Improve

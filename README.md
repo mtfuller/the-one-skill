@@ -53,7 +53,9 @@ It carries no maps for particular hosts. Instead it carries a **framework for dr
 | A. Store & swap | Filesystem access + Python | An exact copy in `.tos-store/` in your project (or home folder), outside the skills folder | `skillctl.py use <skill> original` |
 | B. Twin | Create + enable/disable | The original, disabled and never edited; changes go into `<name>-tuned` | Disable the twin, enable the original |
 | C. Backup first | Edit only | A backup you download before the first change | Re-upload it |
-| D. Hand-off | No write access | Unchanged; you apply the files yourself | Put the old files back |
+| D. Hand-off | No write access | A backup zip it gives you; you upload the new version | Upload the backup |
+
+Where the model has no skill tools but the host has its own skill-authoring workflow (such as a built-in skill-creator), that workflow can serve as the write ability for B or C. It's checked on a throwaway skill first, and only ever saves what the-one-skill drafted.
 
 3. Writes the map, `references/agentspace/<host>.md`. It records where skills live, the exact steps for each operation, any permission prompts to expect, and which skills, connectors, or plugins are **protected** and must never be touched. To you it's a one-time setup you agree to in a word. Ask to see the map if you're curious.
 
@@ -88,6 +90,7 @@ Notes in agentspace can make these rules stricter, but never looser. Only you ca
 
 ## Install
 - **Claude Code:** clone into `~/.claude/skills/the-one-skill` (personal) or `.claude/skills/the-one-skill` (project).
+- **ChatGPT:** upload the release zip under Plugins → Skills. ChatGPT gives it no tools to change skills, so it drafts each change and hands you two zips: a backup of the skill as it was, and the new version to upload. If ChatGPT's own skill-creator can save a skill exactly as drafted, it can use that instead, after checking it on a throwaway skill.
 - **Other hosts:** upload or install the folder as a custom skill.
 
 On its first run it finds an empty `agentspace/index.md`, recognizes a fresh install, and proposes a map for your host.
