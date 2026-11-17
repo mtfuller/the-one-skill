@@ -1,40 +1,48 @@
 ---
 name: the-one-skill
-description: Personal-first skill manager for Gemini Web, Claude Code, and OpenAI Codex. Use when discovering or creating a missing skill, refining a skill after friction or retries, reverting or reapplying a refinement, or auditing roster overlap when multiple skills trigger together. Do not use when executing a normal domain task covered cleanly by one skill with zero friction, or to change any skill the user has locked.
+description: Reflect on a chat or task session, evaluate how well the skills used served the user, and safely improve, create, or revert skills. Use when the user asks to reflect on a session, evaluate a response, improve or fix a skill, create a skill for a repeated workflow, or undo a skill change. Do not use for the domain task itself when a skill handled it without friction.
 ---
 
-# `the-one-skill` — Control Plane
+# the-one-skill
 
-> **One skill to discover, evolve, and tailor them all.**
+Look back at a session, find where skills fell short, propose concrete fixes, and apply the ones the user approves **without ever losing the original skill**. Every change can be undone.
 
-Manage your skill library with standard Agent Skills folders. Load **only the single reference file** matching the active pillar.
-
-## Use when
-
-- A task has no matching skill or repeats across sessions (**Discover**).
-- Checking skill status, locking skills, reverting, reapplying, retiring, or exporting (**Configure**).
-- Friction, corrections, or retries occur in one skill (**Evolve — Fast-Path**).
-- 2+ skills trigger together or overlap/bloat is reported (**Evolve — Full-Roster Audit**).
+## When to Use
+- The user asks to reflect on a recent session or evaluate a response.
+- The user had to correct the output, repeat themselves, or work around a skill.
+- The user asks to improve, fix, or evolve a skill (including this one).
+- A workflow keeps repeating and no skill covers it.
+- The user asks to undo a skill change ("put it back", "revert that").
 
 ## Do not use when
+- Doing the task a skill is for, when it went smoothly.
 
-- Executing a normal domain task covered cleanly by one skill with zero friction.
-- Changing a locked skill (unless the user asks to unlock it).
+## Host
+Read **one** host guide before changing anything: `vendors/claude-code.md` or `vendors/gemini.md`.
 
-## Core Rule: Originals Are Never Edited
+## Steps
 
-- The first refinement of a skill saves the original untouched and installs **one working copy** in its place; later refinements edit only that copy. Revert = put the original back; reapply = swap the copy back in.
-- A disabled version is **out of the host's skills folder** (Claude Code / Codex) or **disabled in the host** (Gemini Web), never just marked.
-- Every change needs a shown diff and the user's approval. If an operation is not possible, stop and ask; never substitute another action.
-- Claude Code / Codex: always use `python3 scripts/skillctl.py --root <skills_root> ...`; never move or edit skill folders by hand.
-- **Check before running scripts:** run `python3 scripts/lint_skills.py --self-check` once per session before any script (on Gemini Web, copy the scripts into the sandbox first; see its adapter). If no code can run (e.g. Gemini Web Chat mode), follow the no-code-execution rules in the reference you loaded and tell the user which checks were skipped.
+1. **Analyze the session.** Identify the user's goal and which skill(s) were used.
+2. **Evaluate.** Review what was generated (content, structure, tone, accuracy). Look at what the user corrected: format (table vs. prose), wrong assumptions, wrong targets or properties the skill should have handled. Note friction and gaps.
+3. **Choose concrete improvements.** For each, say exactly what changes:
+   - **Edit `SKILL.md`:** instructions, constraints, input/output formats.
+   - **Add or edit a reference file** in `references/` (checklists, domain rules) and point to it from `SKILL.md`.
+   - **Create a new skill** if the workflow is a separate job from the current skill's scope.
+4. **Check for contradictions (critical).** If a change conflicts with an existing rule or boundary of the skill, do not apply it silently. Point out the conflict and ask the user to confirm.
+5. **Present the reflection:**
+   - **Skills used**
+   - **What worked / what caused friction**
+   - **Improvement options** (numbered, specific)
+   Ask which options to apply.
+6. **Apply safely (only what the user approved).** Follow the host guide:
+   - Keep the original. The first change to a skill saves it untouched; it is never edited.
+   - Show the full diff of every file you change and get a yes before applying.
+   - Change every file the skill needs; never drop a skill's other files.
+   - Verify the result, summarize what changed, and tell the user: *"Say 'revert' to go back to the original."*
+7. **Revert on request.** Put the original back exactly as it was (host guide). The improved version is kept, so it can be switched back in.
 
-## Three Pillars (Load 1 Reference on Demand)
-
-1. **Discover (`references/discover.md`)** — Search trusted catalogs, check overlap with installed skills, verify with `scripts/lint_skills.py`, install with `skillctl.py install`.
-2. **Configure (`references/configure.md`)** — `status`, `lock`/`unlock`, `revert`/`reapply`, `retire`/`unretire`, `accept`, `prune`, and `export`.
-3. **Evolve (`references/evolve.md`)** — §1 Fast-Path refinement of one skill; §2 Full-Roster audit (sharpen, merge, split); §3 Safe Refinement Protocol.
-
-## Host Adapters
-
-Read `vendors/claude-code.md`, `vendors/codex.md`, or `vendors/gemini-web.md` for skill paths, how disabling works, and restart rules.
+## Gotchas
+- **Skill names:** lowercase letters, numbers, and hyphens only. Never add prefixes such as `user:` or `system:` to a name or to the frontmatter `name`.
+- **Never edit an original in place.** If an operation is not possible, stop and ask; never substitute another action (for example, disabling a skill when asked to delete it).
+- **Be specific.** "Add a rule: dates in YYYY-MM-DD" beats "make the format clearer".
+- **Never silently overwrite a core rule** of a skill; confirm edge-case exceptions with the user first.
