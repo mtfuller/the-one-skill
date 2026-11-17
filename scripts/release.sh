@@ -23,6 +23,8 @@ for arg in "$@"; do
   esac
 done
 
+# Resolve a relative out_dir against where you ran the script, before moving into the repo.
+if [ -n "$OUT" ]; then mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd); fi
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$REPO"
 fail() { echo "release: $*" >&2; exit 1; }
