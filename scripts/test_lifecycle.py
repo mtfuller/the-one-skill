@@ -144,6 +144,9 @@ class TestTheOneSkillLifecycle(unittest.TestCase):
         res = lint_skills.lint_skill_file(tpl_file)
         self.assertTrue(res.passed, f"Embedded template failed lint: {res.errors + res.security_findings}")
 
+    def test_self_check_reports_scripts_available(self) -> None:
+        self.assertEqual(lint_skills.main(["--self-check"]), 0)
+
     def test_repository_skills_and_fixtures_lint(self) -> None:
         exit_code = lint_skills.verify_repository()
         self.assertEqual(exit_code, 0)

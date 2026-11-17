@@ -15,6 +15,7 @@ Usage:
     python3 scripts/lint_skills.py [target_path ...]
     python3 scripts/lint_skills.py --check-source-url <candidate_url>
     python3 scripts/lint_skills.py --verify-repo
+    python3 scripts/lint_skills.py --self-check
 """
 
 from __future__ import annotations
@@ -431,6 +432,18 @@ def verify_repository() -> int:
     return 0
 
 
+def self_check() -> int:
+    """Print what the-one-skill can run here. Exit 0 only if every script is present."""
+    scripts = ("lint_skills.py", "skillctl.py", "export_diff.py")
+    missing = [name for name in scripts if not (REPO_ROOT / "scripts" / name).is_file()]
+    print(f"python {sys.version.split()[0]}; the-one-skill at {REPO_ROOT}")
+    if missing:
+        print(f"SELF-CHECK FAIL: missing scripts: {', '.join(missing)}")
+        return 1
+    print("SELF-CHECK OK: code execution and the-one-skill scripts are available.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Self-contained deterministic token cap, frontmatter, overlap, trusted-source, and security linter."
@@ -451,7 +464,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Run full repository lint check including verified and trap fixtures.",
     )
+    parser.add_argument(
+        "--self-check",
+        action="store_true",
+        help="Confirm that code execution works and the-one-skill's scripts are reachable.",
+    )
     args = parser.parse_args(argv)
+
+    if args.self_check:
+        return self_check()
 
     if args.check_source_url is not None:
         passed, msg = verify_trusted_source_url(args.check_source_url)

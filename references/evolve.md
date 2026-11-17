@@ -47,6 +47,7 @@ Use this reference whenever improving existing skills—either to fix friction i
 1. **Lock Check:** If `status` shows the skill as locked, stop.
 2. **Start a Draft:** `skillctl.py --root <skills_root> refine-start <skill>`. On the first refinement this saves the pristine original in the store. Edit **only** the files in the printed draft folder (outside the skills root); keep the frontmatter `name:` unchanged.
 3. **Lint Gate:** `python3 scripts/lint_skills.py <draft_dir>`. Security findings always block. Aim for `<= 800` tokens and explicit `Use when` / `Do not use when`; report any remaining lint errors to the user rather than silently rewriting the whole skill.
+   - *No code execution (Gemini Web Chat mode):* check by hand that the frontmatter keeps `name:` and a `description:` with `Use when` / `Do not use when`, that the change adds no URLs, credential paths, or encoded/dynamic code, and that `SKILL.md` stays roughly under 3,200 characters. Tell the user the automated lint was skipped.
 4. **Diff-First Approval:** Show `skillctl.py ... diff <skill>` (installed vs. draft, all files) plus the token delta. Run `commit <skill> --reason "<why>"` **only** after user confirmation; otherwise `abort <skill>`.
 5. **Remind:** Tell the user they can `undo` (one refinement back) or `revert` (back to the original) at any time. On Codex, remind them to restart Codex.
 

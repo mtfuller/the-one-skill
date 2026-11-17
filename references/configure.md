@@ -53,7 +53,7 @@ On **Gemini Web** there is no `skillctl.py`; follow `vendors/gemini-web.md` inst
 
 ## 6. Local State Export & PR Diff (`export`)
 
-To contribute improvements to `the-one-skill` itself back to `mtfuller/the-one-skill`:
+To contribute improvements to `the-one-skill` itself back to `mtfuller/the-one-skill` (needs code execution; on Gemini Web use **Task** mode):
 1. Stage local `the-one-skill` files into `artifacts/local-export/`.
 2. Compare against a clean upstream checkout (Claude Code / Codex) or upstream files fetched from `raw.githubusercontent.com/mtfuller/the-one-skill/main/...` (Gemini Web):
    ```bash
