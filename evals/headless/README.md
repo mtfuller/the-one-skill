@@ -8,9 +8,12 @@ These scripts run the-one-skill in real `claude -p` sessions, each in a throwawa
 
 ## Run
 ```bash
-evals/headless/scenarios.sh /tmp/tos-eval      # ~5 min, the scenarios run in parallel
-less /tmp/tos-eval/*.txt                       # each file lists the tool calls, then the final reply
+evals/headless/scenarios.sh /tmp/tos-eval                        # ~5 min, all scenarios in parallel
+evals/headless/scenarios.sh /tmp/tos-eval 10-named-change 13-vanilla   # or just the ones you name
+less /tmp/tos-eval/*.txt                                         # each file lists the tool calls, then the final reply
 ```
+
+The scripts run on macOS (bash 3.2, BSD tools) and on Linux. For an interactive sandbox, run `evals/headless/make_fixture.sh ~/tos-sandbox [profile]`, then `cd ~/tos-sandbox && claude`.
 
 Requirements:
 - The `claude` CLI, logged in.

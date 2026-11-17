@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Portable: macOS bash 3.2 + BSD tools, and Linux.
 # Usage: make_fixture.sh <dir> [profile]
 # Builds a throwaway project: the committed the-one-skill (HEAD) plus three test skills
 # (csv-inspector, csv-analyzer that overlaps it, and a vague helper) under <dir>/.claude/skills.
@@ -13,7 +14,8 @@ REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 D=$1
 PROFILE=${2:-fresh}
 rm -rf "$D"; mkdir -p "$D/.claude/skills"
-git -C "$REPO" archive HEAD | tar -x -C "$D/.claude/skills" --one-top-level=the-one-skill
+mkdir -p "$D/.claude/skills/the-one-skill"
+git -C "$REPO" archive HEAD | tar -x -C "$D/.claude/skills/the-one-skill"
 K=$D/.claude/skills
 mkdir -p "$K/csv-inspector/references" "$K/csv-analyzer" "$K/helper"
 cat > "$K/csv-inspector/SKILL.md" <<'S'
@@ -135,7 +137,8 @@ X
   ;;
 used)
   DR=$(draft csv-inspector)
-  sed -i 's/Present the summary as prose paragraphs./Present the summary as a Markdown table./' "$DR/SKILL.md"
+  sed 's/Present the summary as prose paragraphs./Present the summary as a Markdown table./' "$DR/SKILL.md" > "$DR/SKILL.md.new"
+  mv "$DR/SKILL.md.new" "$DR/SKILL.md"
   $C apply csv-inspector > /dev/null
   $C retire helper > /dev/null
   NEW=$($C new weekly-status-report | sed -n 's/^New skill draft: //p')
