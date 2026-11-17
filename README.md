@@ -115,6 +115,7 @@ references/agentspace/*                   adapters and your notes (generated on 
 scripts/skillctl.py                       strategy A helper (Python 3 stdlib, no installs)
 scripts/guard_skills.py                   Claude Code hook: blocks direct edits inside skills folders
 scripts/bundle.py                         pack a release into one text file (no agentspace), or unpack it
+scripts/release.sh                        check, tag locally, and build the release files into dist/
 references/updating.md                    update the-one-skill from a downloaded release
 VERSION, CHANGELOG.md                     release number and plain-language notes
 tests/                                    unit tests for skillctl.py
@@ -153,11 +154,11 @@ Built-in safeguards:
 Your agentspace can name your private skills and connectors, so everything in `references/agentspace/` except the empty `index.md` is git-ignored. Once the skill fills in your index, git shows it as modified. Keep it home: don't commit it upstream.
 
 ## Releasing
-1. Bump `VERSION` and add a plain-language entry to `CHANGELOG.md`.
-2. Run `python3 scripts/bundle.py pack . -o the-one-skill.bundle.md`.
-3. Tag the release (for example `v1.1.0`) and attach a zip of the skill folder and the bundle.
+1. On a branch, bump `VERSION` and add a plain-language `## <version>` entry to `CHANGELOG.md`. Merge it into main.
+2. On an up-to-date, clean main, run `scripts/release.sh --tag`. It checks the version and the changelog, runs the tests, creates the tag `v<version>` locally, and builds `dist/the-one-skill-<version>.zip`, `dist/the-one-skill-<version>.bundle.md` and `dist/notes.md` from that tag.
+3. Publish. The script pushes nothing; it prints the two commands: `git push origin v<version>`, then `gh release create …` (or create the release on GitHub and attach the two files).
 
-Users update by downloading either one and asking the-one-skill to update itself.
+Users update by downloading either file and asking the-one-skill to update itself.
 
 ## Develop
 ```bash

@@ -5,3 +5,4 @@ the-one-skill-store/
 # Only the empty index ships; your filled-in copy shows as modified in git: don't commit it upstream.
 references/agentspace/*
 !references/agentspace/index.md
+dist/
