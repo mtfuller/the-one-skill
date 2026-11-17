@@ -162,7 +162,7 @@ release)
   $C apply the-one-skill > /dev/null
   R="$D/.release-src"; mkdir -p "$R"
   git -C "$REPO" archive HEAD | tar -x -C "$R"
-  echo "1.1.0" > "$R/VERSION"
+  echo "1.1.0" > "$R/VERSION.md"
   python3 - "$R" <<'P'
 import sys, pathlib
 r = pathlib.Path(sys.argv[1])

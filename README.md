@@ -117,7 +117,7 @@ scripts/guard_skills.py                   Claude Code hook: blocks direct edits 
 scripts/bundle.py                         pack a release into one text file (no agentspace), or unpack it
 scripts/release.sh                        check, tag locally, and build the release files into dist/
 references/updating.md                    update the-one-skill from a downloaded release
-VERSION, CHANGELOG.md                     release number and plain-language notes
+VERSION.md, CHANGELOG.md                  release number and plain-language notes
 tests/                                    unit tests for skillctl.py
 evals/checklist.md                        manual checks to run on a host before a release
 evals/headless/                           scripted Claude Code eval scenarios (claude -p)
@@ -155,8 +155,8 @@ Built-in safeguards:
 Your agentspace can name your private skills and connectors, so everything in `references/agentspace/` except the empty `index.md` is git-ignored. Once the skill fills in your index, git shows it as modified. Keep it home: don't commit it upstream.
 
 ## Releasing
-1. On a branch, bump `VERSION` and add a plain-language `## <version>` entry to `CHANGELOG.md`. Merge it into main.
-2. On an up-to-date, clean main, run `scripts/release.sh --tag`. It checks the version and the changelog, runs the tests, creates the tag `v<version>` locally, and builds `dist/the-one-skill-<version>.zip`, `dist/the-one-skill-<version>.bundle.md` and `dist/notes.md` from that tag.
+1. On a branch, bump `VERSION.md` and add a plain-language `## <version>` entry to `CHANGELOG.md`. Merge it into main.
+2. On an up-to-date, clean main, run `scripts/release.sh --tag`. It checks the version and the changelog, runs the tests, creates the tag `v<version>` locally, and builds `dist/the-one-skill-<version>.zip`, `dist/the-one-skill-<version>.bundle.md` and `dist/notes.md` from that tag. Both release files hold only the **package**: `SKILL.md`, `README.md`, `CHANGELOG.md`, `VERSION.md`, `LICENSE.md`, `references/`, and `scripts/*.py`. Every file is `.md` or `.py`, which skill hosts such as Gemini accept, and the script refuses to finish if any other file slips in.
 3. Publish. The script pushes nothing; it prints the two commands: `git push origin v<version>`, then `gh release create …` (or create the release on GitHub and attach the two files).
 
 Users update by downloading either file and asking the-one-skill to update itself.

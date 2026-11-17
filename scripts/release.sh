@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Build the release files for the version in VERSION, from its git tag.
+# Build the release files for the version in VERSION.md, from its git tag.
 #
 #   scripts/release.sh [--tag] [out_dir]      (default out_dir: dist/)
 #
-# Checks: clean working tree, VERSION looks like 1.2.3, CHANGELOG.md has "## <version>",
+# Checks: clean working tree, VERSION.md looks like 1.2.3, CHANGELOG.md has "## <version>",
 # tests pass, and tag v<version> exists and points at HEAD (--tag creates it locally).
 # Builds, from the tag (never from the working folder):
-#   the-one-skill-<version>.zip         top-level the-one-skill/ folder
+#   the-one-skill-<version>.zip         the release package under the-one-skill/ (.md and .py
+#                                       files only, which skill hosts such as Gemini accept)
 #   the-one-skill-<version>.bundle.md   one plain-text file any chat can read
 #   notes.md                            this version's CHANGELOG section
 # It never pushes or publishes anything: it prints the commands for that.
@@ -29,8 +30,8 @@ REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$REPO"
 fail() { echo "release: $*" >&2; exit 1; }
 
-VERSION=$(tr -d '[:space:]' < VERSION)
-echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "VERSION must look like 1.2.3 (found '$VERSION')"
+VERSION=$(tr -d '[:space:]' < VERSION.md)
+echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "VERSION.md must look like 1.2.3 (found '$VERSION')"
 TAG="v$VERSION"
 OUT=${OUT:-"$REPO/dist"}
 
@@ -48,7 +49,7 @@ if ! git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
     fail "tag $TAG doesn't exist; run with --tag to create it, or: git tag -a $TAG -m \"the-one-skill $VERSION\""
   fi
 fi
-[ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] || fail "tag $TAG doesn't point at HEAD; check out the tag's commit, or bump VERSION"
+[ "$(git rev-parse "$TAG^{commit}")" = "$(git rev-parse HEAD)" ] || fail "tag $TAG doesn't point at HEAD; check out the tag's commit, or bump VERSION.md"
 
 mkdir -p "$OUT"
 ZIP="$OUT/the-one-skill-$VERSION.zip"
@@ -56,12 +57,14 @@ BUNDLE="$OUT/the-one-skill-$VERSION.bundle.md"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-git archive --format=zip --prefix=the-one-skill/ -o "$ZIP" "$TAG"
 git archive --prefix=the-one-skill/ "$TAG" | tar -x -C "$WORK"
+python3 "$WORK/the-one-skill/scripts/bundle.py" zip "$WORK/the-one-skill" -o "$ZIP" > /dev/null
 python3 "$WORK/the-one-skill/scripts/bundle.py" pack "$WORK/the-one-skill" -o "$BUNDLE"
 awk -v v="## $VERSION" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > "$OUT/notes.md"
 
 grep -q "^Version: $VERSION\." "$BUNDLE" || fail "bundle header doesn't say version $VERSION"
+BAD=$(python3 -c 'import sys, zipfile; print("\n".join(n for n in zipfile.ZipFile(sys.argv[1]).namelist() if not n.endswith("/") and not n.endswith((".md", ".py"))))' "$ZIP")
+[ -z "$BAD" ] || fail "zip has files hosts may reject (not .md/.py): $BAD"
 [ -s "$OUT/notes.md" ] || fail "the CHANGELOG section for $VERSION is empty"
 
 echo
