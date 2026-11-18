@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
@@ -22,7 +23,7 @@ description: Inspect CSV files. Use when the user shares a CSV.
 # csv-inspector
 
 ## Steps
-1. Read the file.
+1. Read the file. For delimiters, read `references/delimiters.md`.
 """
 
 
@@ -689,6 +690,198 @@ class OverlapTest(unittest.TestCase):
         self.assertEqual(skillctl.main(args + ["overlap", "--candidate", str(self.builtin / "pptx")]), 0)
         self.assertEqual(skillctl.main(args + ["overlap", "--candidate", "missing"]), 1)
         self.assertFalse(self.ctl.store.exists())  # overlap only reads: not even the store is created
+
+
+class StructureTest(unittest.TestCase):
+    """`list` flags skills whose files don't fit together."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "skills"
+        self.root.mkdir()
+        self.ctl = SkillCtl(self.root)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp)
+
+    def make(self, name: str, body: str, files: dict[str, str] | None = None, desc: str | None = None) -> None:
+        d = self.root / name
+        d.mkdir()
+        (d / "SKILL.md").write_text(skill_md(name, desc or f"Does {name}. Use when asked.", body))
+        for rel, text in (files or {}).items():
+            (d / rel).parent.mkdir(parents=True, exist_ok=True)
+            (d / rel).write_text(text)
+
+    def issues(self, name: str) -> list[str]:
+        return next(r for r in self.ctl.roster() if r["name"] == name)["issues"]
+
+    def test_well_formed_skill_with_a_helper_script_is_clean(self) -> None:
+        self.make("tidy", "1. Run `python3 scripts/main.py <file>`; it prints a table.\n"
+                  "2. See references/format.md for the layout.\n", {
+                      "scripts/main.py": "import helper\nprint(helper.go())\n",
+                      "scripts/helper.py": "def go():\n    return 1\n",
+                      "references/format.md": "Columns: name, type.\n"})
+        self.assertEqual(self.issues("tidy"), [])
+
+    def test_template_left_in(self) -> None:
+        d = self.ctl.new("fresh")
+        shutil.copytree(d, self.root / "fresh")
+        self.assertIn("template placeholders left in SKILL.md", self.issues("fresh"))
+
+    def test_broken_orphan_unrunnable_and_absolute(self) -> None:
+        self.make("messy", "1. Read references/missing.md.\n2. Then use scripts/convert.py on the file.\n"
+                  "3. Output goes to /home/alice/out.csv.\n", {
+                      "scripts/convert.py": "print(1)\n", "references/unused.md": "Nobody reads this.\n"},
+                  desc="x " * 600 + "Use when asked.")
+        got = "\n".join(self.issues("messy"))
+        self.assertIn("points to `references/missing.md`, which doesn't exist", got)
+        self.assertIn("`references/unused.md` is never mentioned", got)
+        self.assertIn("`scripts/convert.py` has no line saying how to run it", got)
+        self.assertIn("absolute path", got)
+        self.assertIn("characters (> 1024)", got)
+
+    def test_wildcards_and_agentspace_are_not_broken_links(self) -> None:
+        self.make("calm", "Never edit `references/readonly-*.md`. Notes go in references/agentspace/notes.md.\n")
+        self.assertEqual(self.issues("calm"), [])
+
+
+class ScriptOverlapTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "skills"
+        parser = "import csv\nimport sys\n\n# read rows\ndef rows(path):\n    with open(path) as f:\n" \
+                 "        return list(csv.reader(f))\n\nfor r in rows(sys.argv[1]):\n    print(','.join(r))\n"
+        for name, task in (("sales-report", "Write a sales report"), ("inventory-audit", "Audit warehouse stock")):
+            d = self.root / name
+            (d / "scripts").mkdir(parents=True)
+            (d / "SKILL.md").write_text(skill_md(name, f"{task}. Use when asked.", "Run `python3 scripts/rows.py`.\n"))
+            (d / "scripts" / "rows.py").write_text(parser if name == "sales-report"
+                                                   else "# a copy\n" + parser.replace("    ", "  "))
+        self.ctl = SkillCtl(self.root)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp)
+
+    def test_same_script_in_two_skills(self) -> None:
+        r = self.ctl.overlap()
+        self.assertEqual(len(r["shared_scripts"]), 1)
+        s = r["shared_scripts"][0]
+        self.assertEqual({s["a"], s["b"]}, {"sales-report", "inventory-audit"})
+        self.assertTrue(s["identical"])  # comments and indentation don't count
+        self.assertIn("SCRIPT", skillctl._overlap.report(r))
+
+
+class PublishedUpgradeTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "skills"
+        self.root.mkdir()
+        self.pub = self.tmp / "pub" / "pdf"
+        self.pub.mkdir(parents=True)
+        (self.pub / "SKILL.md").write_text(skill_md("pdf", "Work with PDFs. Use when a PDF is involved.",
+                                                    "1. Extract text.\n2. Keep page order.\n"))
+        self.ctl = SkillCtl(self.root)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp)
+
+    def test_adapted_skill_takes_publisher_updates_and_keeps_tweaks(self) -> None:
+        with self.assertRaises(Refused):
+            self.ctl.new("pdf", None, published=True)
+        self.ctl.new("pdf", self.pub, published=True)
+        self.ctl.apply("pdf")                                   # as published
+        d = self.ctl.draft("pdf")
+        (d / "SKILL.md").write_text((d / "SKILL.md").read_text() + "3. Dates as YYYY-MM-DD.\n")
+        self.ctl.apply("pdf")                                   # with the user's tweak
+        (self.pub / "SKILL.md").write_text((self.pub / "SKILL.md").read_text().replace(
+            "1. Extract text.", "1. Extract text and tables."))  # the publisher's next release
+        r = self.ctl.upgrade("pdf", self.pub)
+        self.assertFalse(r["conflicts"])
+        merged = (Path(r["draft"]) / "SKILL.md").read_text()
+        self.assertIn("1. Extract text and tables.", merged)
+        self.assertIn("3. Dates as YYYY-MM-DD.", merged)
+
+
+class CaseTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.root = self.tmp / "skills"
+        d = self.root / "csv-count"
+        (d / "scripts").mkdir(parents=True)
+        (d / "SKILL.md").write_text(skill_md("csv-count", "Count CSV rows. Use when asked.",
+                                             "Run `python3 scripts/count.py <file>`.\n"))
+        (d / "scripts" / "count.py").write_text(
+            "import sys\nrows = open(sys.argv[1]).read().splitlines()\nprint(f'rows: {len(rows) - 1}')\n")
+        self.data = self.tmp / "data.csv"
+        self.data.write_text("a,b\n1,2\n3,4\n")
+        self.ctl = SkillCtl(self.root)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp)
+
+    def test_recorded_case_catches_a_regression_in_a_draft(self) -> None:
+        run = f"{sys.executable} {{skill}}/scripts/count.py data.csv"
+        self.ctl.case_add("csv-count", "header-not-counted", "How many rows?", ["the header is not a row"],
+                          [self.data], run, record=True)
+        self.ctl.case_add("csv-count", "plain-answer", "How many rows?", ["answers with one number"])
+        self.assertEqual(self.ctl.cases("csv-count")["header-not-counted"]["stdout"], "rows: 2\n")
+        rows = {r["case"]: r["result"] for r in self.ctl.case_run("csv-count")}
+        self.assertEqual(rows, {"header-not-counted": "pass", "plain-answer": "check by hand"})
+        d = self.ctl.draft("csv-count")
+        (d / "scripts" / "count.py").write_text(
+            "import sys\nprint(f'rows: {len(open(sys.argv[1]).read().splitlines())}')\n")
+        bad = next(r for r in self.ctl.case_run("csv-count") if r["case"] == "header-not-counted")
+        self.assertEqual(bad["result"], "FAIL")
+        self.assertIn("rows: 3", bad["detail"])
+        ok = next(r for r in self.ctl.case_run("csv-count", installed=True) if r["case"] == "header-not-counted")
+        self.assertEqual(ok["result"], "pass")
+        self.assertEqual(self.ctl.status(), [("csv-count", "original (draft in progress)")])  # cases aren't a skill
+        args = ["--root", str(self.root)]
+        self.assertEqual(skillctl.main(args + ["case", "run", "csv-count"]), 1)
+        self.assertEqual(skillctl.main(args + ["case", "list", "csv-count"]), 0)
+        self.ctl.case_remove("csv-count", "plain-answer")
+        self.assertEqual(list(self.ctl.cases("csv-count")), ["header-not-counted"])
+
+    def test_case_refusals(self) -> None:
+        with self.assertRaises(Refused):
+            self.ctl.case_add("csv-count", "x", "p")  # no expectation, no command
+        with self.assertRaises(Refused):
+            self.ctl.case_add("csv-count", "x", "p", ["e"], record=True)  # record needs run
+        with self.assertRaises(Refused):
+            self.ctl.case_add("csv-count", "x", "p", ["e"], run=f"{sys.executable} -c 'import sys; sys.exit(3)'",
+                              record=True)
+        self.assertEqual(self.ctl.cases("csv-count"), {})  # nothing half-saved
+
+
+class UsageTest(unittest.TestCase):
+    def test_counts_skill_calls_slash_commands_and_reads(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            proj = tmp / "projects" / "p1"
+            proj.mkdir(parents=True)
+            lines = [
+                {"timestamp": "2026-10-01T10:00:00Z", "message": {"content": [
+                    {"type": "tool_use", "name": "Skill", "input": {"skill": "csv-inspector"}}]}},
+                {"timestamp": "2026-11-02T10:00:00Z", "message": {"content": [
+                    {"type": "tool_use", "name": "Skill", "input": {"skill": "anthropic-skills:pdf"}}]}},
+                {"timestamp": "2026-11-03T10:00:00Z", "message": {"content": [
+                    {"type": "tool_use", "name": "Read", "input": {"file_path": "/x/.claude/skills/csv-inspector/SKILL.md"}}]}},
+                {"timestamp": "2026-11-04T10:00:00Z", "message": {"content": "<command-name>/git-release</command-name>"}},
+                "not json at all",
+            ]
+            (proj / "s.jsonl").write_text("\n".join(l if isinstance(l, str) else json.dumps(l) for l in lines))
+            used = SkillCtl.usage(tmp / "projects")
+            self.assertEqual(used["csv-inspector"], {"uses": 2, "last": "2026-11-03"})
+            self.assertEqual(used["pdf"]["uses"], 1)
+            self.assertEqual(used["git-release"]["last"], "2026-11-04")
+            root = tmp / "skills"
+            (root / "csv-inspector").mkdir(parents=True)
+            (root / "csv-inspector" / "SKILL.md").write_text(SKILL)
+            self.assertEqual(skillctl.main(["--root", str(root), "usage", "--transcripts", str(tmp / "projects")]), 0)
+            with self.assertRaises(Refused):
+                SkillCtl.usage(tmp / "nope")
+        finally:
+            shutil.rmtree(tmp)
 
 
 if __name__ == "__main__":

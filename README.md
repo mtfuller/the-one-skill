@@ -37,6 +37,24 @@ A new skill never starts from a blank page if someone has already done the work.
 
 The draft is filled from your actual corrections in the session, names the neighbours it hands off to, and is checked for overlap before you see it.
 
+It remembers the verified skills it has already read, and what it decided about each, so it doesn't search from scratch every session. A skill installed or adapted from a publisher can later be **updated from the publisher's newer release**: their changes go in, and your tweaks stay.
+
+### ⚙️ Scripts for what must be exact: *what is forged does not waver*
+Instructions get followed slightly differently each run, and code runs the same way every time. When a correction was mechanical (a count, a date format, a parse, a file layout), or the same code got written twice, it moves that step into a small script. It tests the script on the file from your session before proposing it. The instructions keep the judgement, and the scripts do the mechanical work. Every new skill starts from a template built that way: inputs, steps, output with an example, edge cases, and where each script and reference fits.
+
+Each fix is also saved as a **case**: what you asked, your input, and what a good result does. Script cases record the expected output. Every later change to that skill is checked against them, so an old correction can't quietly come back.
+
+### 🩺 Structure checks: *every road leads somewhere*
+Reviewing your skills also catches skills whose files don't fit together:
+- pointers to files that don't exist
+- references and scripts that nothing mentions, so they're never read or run
+- scripts with no line saying how to run them
+- template placeholders left in
+- descriptions over the host's limit
+- absolute paths into one machine
+
+It also tracks **when each skill was last used**: on Claude Code from your session history (it asks once first), elsewhere from its reflections. Skills idle for two months get listed so you can decide. It never retires one on its own.
+
 ### 🏹 Find and install a skill: *seeking aid from trusted realms*
 When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill, but only one that **Anthropic, OpenAI, or Google** publishes:
 - in their own products' skill directories (Claude, ChatGPT, Gemini), counting only skills the company itself publishes there

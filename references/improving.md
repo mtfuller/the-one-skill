@@ -6,6 +6,7 @@ Use this to reflect on a session and to fix or improve a skill, including the-on
 2. **Evaluate.** Review what was generated (content, structure, tone, accuracy). Look at what the user corrected: format (table vs. prose), wrong assumptions, wrong targets or properties the skill should have handled. Note friction and gaps. Focus on the skills that did the work. Mention the-one-skill only if it caused the friction, in one line.
 3. **Choose concrete improvements**, specific enough to act on ("dates as YYYY-MM-DD", not "clearer format"). How to make each one is up to you:
    - Edit the skill's instructions, or add a reference file it points to.
+   - **Move a deterministic step into a script** when the correction was mechanical (a count, a format, a parse) or the same code got written again. Prose would only be followed most of the time (`references/writing-skills.md`). Test it on the session's real input before proposing.
    - Create a new skill if the workflow is a separate job, starting from the best verified work (`references/managing-roster.md`, "Create a skill").
    - Install a skill published by Anthropic, OpenAI, or Google if the job is generic enough that one probably exists (`references/managing-roster.md`).
    - **Put each rule where it is owned.** If the correction is about a policy another skill owns (see the roster map), change the owner, not the skill you used. If the same correction applies to several skills, it is a shared policy: propose giving it one owner instead of adding the rule to each.
@@ -15,8 +16,10 @@ Use this to reflect on a session and to fix or improve a skill, including the-on
 6. **Apply what the user approved,** using the adapter's mechanism, never by editing installed skill files directly:
    - Keep the original. The first change to a skill saves it untouched, and it is never edited.
    - Prepare only what was approved, and change every file the skill needs. Never drop a skill's other files.
+   - Before proposing, run the skill's cases against the draft (strategy A: `case run <skill>`). If one fails, the change breaks an earlier fix: fix the draft, or name the conflict in your message.
    - Before proposing, check the draft for new overlap (strategy A: `overlap --candidate <skill>`). A change that widens a skill's triggers or copies another skill's procedure is named in your message, with the boundary or owner you'd use instead.
    - If the change moves what the skill owns, update the roster map in the same change.
+   - Save each correction you fixed as a case (`references/writing-skills.md`, "Cases"), so later changes can't quietly bring it back.
    - Verify the result, then report it in one line with how to undo it.
 
 ## Learn as you go

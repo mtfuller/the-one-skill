@@ -13,6 +13,9 @@ rewrites a skill, and during a roster review:
   carry them. A block repeated in three skills is a policy that should have one owner.
 * **Boundaries:** whether either description names the other skill in a "Do not use ..." sentence
   (for example "Do not use for slides in general (use pptx).").
+* **Shared scripts:** script files (any code under the skill) that are identical or nearly so across
+  skills, compared on their code with comments and blank lines removed. Two skills carrying the same
+  parser are the same procedure, even if their instructions differ.
 * **Shadowing:** the same skill name in two scanned folders.
 
 It only reads. Folders passed with `also` are scanned for comparison but treated as read-only
@@ -34,7 +37,11 @@ LINE_SHARED = 0.6       # share of a line's shingles found in another skill for 
 MIN_LINE_WORDS = 6      # shorter lines are too generic to compare
 MIN_BLOCK_WORDS = 20    # smallest repeated block worth reporting
 SHINGLE = 4
+SCRIPT_FLAG = 0.7       # share of the smaller script's code lines found in the other
+MIN_SCRIPT_LINES = 5    # shorter scripts are too generic to compare
 TEXT_SUFFIXES = {".md", ".txt"}
+CODE_SUFFIXES = {".py", ".sh", ".bash", ".js", ".mjs", ".cjs", ".ts", ".rb", ".pl", ".ps1", ".r", ".go", ".rs",
+                 ".java", ".kt", ".swift", ".php", ".lua", ".sql"}
 SELF = "the-one-skill"
 
 STOP = set("""
@@ -65,6 +72,17 @@ def words(text: str) -> list[str]:
 
 def _shingles(tokens: Sequence[str]) -> set[tuple[str, ...]]:
     return {tuple(tokens[i:i + SHINGLE]) for i in range(len(tokens) - SHINGLE + 1)}
+
+
+def code_lines(text: str) -> list[str]:
+    """Code with comments, docstring-only lines, and whitespace differences removed."""
+    out = []
+    for raw in text.splitlines():
+        line = re.sub(r"\s+", " ", raw).strip()
+        if not line or line.startswith(("#", "//", "--", "/*", "*", '"""', "'''")):
+            continue
+        out.append(line)
+    return out
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
@@ -107,6 +125,7 @@ class Skill:
     description: str = ""
     lines: list[str] = field(default_factory=list)   # instruction lines long enough to compare
     readonly: bool = False
+    scripts: dict[str, list[str]] = field(default_factory=dict)  # relative path -> normalized code lines
 
     def __post_init__(self) -> None:
         self.line_shingles = [_shingles(words(l)) for l in self.lines]
@@ -120,10 +139,17 @@ def load(folder: Path, origin: str, readonly: bool = False) -> Skill | None:
         return None
     fm, body = _split_frontmatter(md.read_text(encoding="utf-8", errors="replace"))
     texts = [body]
+    scripts: dict[str, list[str]] = {}
     for p in sorted(folder.rglob("*")):
-        if p.is_file() and p != md and p.suffix.lower() in TEXT_SUFFIXES and ".git" not in p.parts \
-                and not p.name.startswith("readonly-"):
+        if not p.is_file() or p == md or ".git" in p.parts or "__pycache__" in p.parts:
+            continue
+        suffix = p.suffix.lower()
+        if suffix in TEXT_SUFFIXES and not p.name.startswith("readonly-"):
             texts.append(p.read_text(encoding="utf-8", errors="replace"))
+        elif suffix in CODE_SUFFIXES:
+            code = code_lines(p.read_text(encoding="utf-8", errors="replace"))
+            if len(code) >= MIN_SCRIPT_LINES:
+                scripts[p.relative_to(folder).as_posix()] = code
     lines = []
     for t in texts:
         for raw in t.splitlines():
@@ -131,7 +157,7 @@ def load(folder: Path, origin: str, readonly: bool = False) -> Skill | None:
             if line.startswith(("#", "|", "```")) or len(words(line)) < MIN_LINE_WORDS:
                 continue
             lines.append(line)
-    return Skill(fm.get("name") or folder.name, folder, origin, fm.get("description", ""), lines, readonly)
+    return Skill(fm.get("name") or folder.name, folder, origin, fm.get("description", ""), lines, readonly, scripts)
 
 
 def scan(folder: Path, origin: str, readonly: bool = False) -> list[Skill]:
@@ -223,11 +249,27 @@ def analyze(skills: list[Skill], focus: str | None = None) -> dict[str, Any]:
                        "readonly": sorted(k for k in key if k in ro_names)})
     blocks.sort(key=lambda b: (-len(b["skills"]), -b["words"]))
 
+    # Shared scripts: identical or near-identical code files in different skills.
+    shared_scripts = []
+    for i, a in enumerate(skills):
+        for b in skills[i + 1:]:
+            if (focus and focus not in (a.name, b.name)) or (a.readonly and b.readonly):
+                continue
+            for pa, ca in a.scripts.items():
+                for pb, cb in b.scripts.items():
+                    sa, sb = Counter(ca), Counter(cb)
+                    same = sum((sa & sb).values()) / min(len(ca), len(cb))
+                    if same >= SCRIPT_FLAG:
+                        shared_scripts.append({
+                            "a": a.name, "a_file": pa, "b": b.name, "b_file": pb, "similarity": round(same, 2),
+                            "identical": ca == cb, "readonly": [s.name for s in (a, b) if s.readonly]})
+    shared_scripts.sort(key=lambda r: -r["similarity"])
+
     seen: dict[str, list[str]] = {}
     for s in skills:
         seen.setdefault(s.name, []).append(f"{s.origin}:{s.folder}")
     shadowed = {n: where for n, where in seen.items() if len(where) > 1}
-    return {"pairs": pairs, "shared_blocks": blocks, "shadowed": shadowed}
+    return {"pairs": pairs, "shared_blocks": blocks, "shared_scripts": shared_scripts, "shadowed": shadowed}
 
 
 def report(result: dict[str, Any]) -> str:
@@ -248,7 +290,14 @@ def report(result: dict[str, Any]) -> str:
             out.append(f"           -> {', '.join(b['readonly'])} is protected: the others should defer to it")
         else:
             out.append("           -> give it one owner: merge these skills, or move it into one skill the others defer to")
-    return "\n".join(out) if out else "No overlap found: triggers and procedures are distinct."
+    for r in result.get("shared_scripts", []):
+        kind = "identical" if r["identical"] else f"{r['similarity']:.0%} the same"
+        out.append(f"SCRIPT     {r['a']}/{r['a_file']} and {r['b']}/{r['b_file']} are {kind}")
+        if r["readonly"]:
+            out.append(f"           -> {', '.join(r['readonly'])} is protected: the other should use or defer to it")
+        else:
+            out.append("           -> one owner for this script: merge the skills, or keep it in one skill the other defers to")
+    return "\n".join(out) if out else "No overlap found: triggers, procedures, and scripts are distinct."
 
 
 def skills_for(roots: Iterable[tuple[Path, str, bool]], candidate: Skill | None = None) -> list[Skill]:

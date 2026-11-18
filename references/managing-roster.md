@@ -36,9 +36,9 @@ Purpose: which skill owns each job and each shared policy, and which overlaps ar
 Updated: <YYYY-MM-DD>
 
 ## Skills
-| Skill | Owns (job) | Hands off to |
-| :--- | :--- | :--- |
-| csv-inspector | Column types and missing values in a CSV | csv-summary (totals, averages) |
+| Skill | Owns (job) | Hands off to | Last used |
+| :--- | :--- | :--- | :--- |
+| csv-inspector | Column types and missing values in a CSV | csv-summary (totals, averages) | 2026-11-03 |
 
 ## Shared policies
 | Policy | Owner | Used by |
@@ -51,6 +51,7 @@ Updated: <YYYY-MM-DD>
 
 - **Same change.** Every create, install, merge, split, rename, retire, or restore, and every improvement that changes what a skill owns, updates the map in the same change, under the same yes.
 - **Respect decisions.** An overlap listed as deliberate is not proposed again unless the user asks.
+- **Last used.** When you reflect on a session, set the date for each skill that did work in it. Do it in the same change as your other proposals, or as a small change of its own if nothing else changes. Where the host keeps session transcripts that you can read (on Claude Code, `usage` reads `~/.claude/projects`), use those instead. Ask the user once before reading them, and record their answer in the adapter.
 - Leave the-one-skill out of the map.
 
 ## Review the roster
@@ -61,7 +62,8 @@ Updated: <YYYY-MM-DD>
    - **Vague triggers:** a description that never says when to use the skill. Propose a rewrite.
    - **Broken structure:** a missing `SKILL.md`, a frontmatter `name` that differs from the folder, an invalid name, or a `SKILL.md` over 500 lines (move detail into `references/`).
    - **Gaps:** a workflow from this or recent sessions that no skill covers. Offer to create one (below).
-   - **Dead weight:** skills the user says they no longer use.
+   - **Dead weight:** skills not used for 60 days or more (from `usage`, or the roster map's "Last used"), and skills the user says they no longer use. Never retire a skill just because it looks unused: list it and ask. Some skills are rare but important.
+   - **Unpublished updates:** for skills installed from a publisher, whether a newer release exists, if the user wants that checked (see "Update a skill from its publisher").
 4. Give a short table (skill · what's wrong · what you'd do), in plain words, and end with one question: do all, some, or none. Nothing changes until the user answers.
 
 ## Operations
@@ -69,8 +71,9 @@ Updated: <YYYY-MM-DD>
 | Operation | How (always with approval) | Strategy A |
 | :--- | :--- | :--- |
 | **Improve** | `references/improving.md`. | `draft` → edit → `overlap --candidate` → `apply` |
-| **Create** | See below. | `new <name>` → write files → `overlap --candidate <name>` → `apply` |
-| **Find and install** | See below. | `overlap --candidate <folder>`, then `new <name> --from <folder>` |
+| **Create** | See below, and `references/writing-skills.md` for the files. | `new <name>` → write files → `list`, `overlap --candidate <name>`, `case run` → `apply` |
+| **Find and install** | See below. | `overlap --candidate <folder>`, then `new <name> --from <folder> --published` |
+| **Update from publisher** | See below. | `upgrade <name> --from <folder>` → `apply` |
 | **Merge** | See below. | `new` or `draft`, then `retire` each |
 | **Extract a shared policy** | See "Give a shared procedure one owner". | `new <owner>`, then `draft` each skill that defers |
 | **Split** | Create the new skill, then improve the old one to narrow its scope and point to the new one. | `new`, then `draft` |
@@ -87,11 +90,12 @@ Don't write from a blank page when Anthropic, OpenAI, or Google has already solv
 
 1. **Name the job and its boundaries.** One sentence: what the skill does, and what it does not. Check the roster map and run `overlap` against that sentence's neighbours. If an existing skill already owns the job, offer to improve it instead. If the job needs a policy another skill owns, the new skill defers to that owner.
 2. **Look for a verified head start**, every time, before writing:
+   - the verified-skills list (below), so you don't search for what you already found
    - skills already on the host, including protected and built-in ones. One may already cover the job, and then the answer is to use it, not to write another.
    - skills that Anthropic, OpenAI, or Google publish, from the same sources as "Find and install" (policy invariant 11).
    - if the host has a published skill-authoring skill (such as Anthropic's `skill-creator`), read it for how to structure the skill and write its description. It is protected: use its guidance, never change it.
 
-   Read every file of the closest one to three candidates.
+   Read every file of the closest one to three candidates, and add what you found to the verified-skills list.
 3. **Pick a start**, and say which in one line of your proposal:
 
    | Start | When | How |
@@ -101,8 +105,8 @@ Don't write from a blank page when Anthropic, OpenAI, or Google has already solv
    | **Borrow** | Verified skills solve parts of it | Write a new skill that takes their structure, steps, reference layout, or scripts. Keep the source's license terms, and record the source with `--note "<source> <version>"` |
    | **Scratch** | Nothing close exists | Write it, following the authoring guidance from step 2 |
 
-4. **Draft the whole skill.** The description says what it does, "Use when …", and "Do not use when … (use `<neighbour>`)" for each neighbour from step 1. Policies another skill owns are deferred to, never copied. Fill the steps from the session that prompted the skill: the user's actual corrections are the best requirements.
-5. **Check it:** `overlap --candidate <name>` comes back clean, or every finding is explained in your proposal.
+4. **Draft the whole skill** following `references/writing-skills.md`. The description says what it does, "Use when …", and "Do not use when … (use `<neighbour>`)" for each neighbour from step 1. Policies another skill owns are deferred to, never copied. Fill the sections from the session that prompted the skill: the user's actual corrections are the best requirements. Put deterministic steps in scripts, tested on the session's real input.
+5. **Check it** (writing-skills.md, "Before you propose"): the structure check is clean, `overlap --candidate <name>` is clean or every finding is explained in your proposal, and each correction from the session is saved as a case that passes.
 6. **Propose in one message:** what the skill will do, where it started from, and what it hands off. Create it after a yes, update the roster map in the same change, and track it as created by the-one-skill, so going back to vanilla can find it. Show its files if asked.
 
 ## Find and install a skill from Anthropic, OpenAI, or Google
@@ -113,14 +117,45 @@ Use this when the user wants an existing skill rather than one written for them,
    - their skill directories in their own products (Claude, ChatGPT, Gemini), counting only the skills the company itself publishes there
    - their official repositories, such as the `anthropics`, `openai`, `google`, and `google-gemini` organizations on GitHub
 
+   Start from the verified-skills list (below). Search again for anything it doesn't cover, or where its entry is more than 90 days old.
+
    Check the publisher from where the skill actually lives (the organization or the directory's publisher field), never from what its name or description claims. No other source counts, even if the user names one or asks for more. If none of the three publishes a fitting skill, say so plainly, and offer to write one or to change a skill the user already has. If the user wants a skill from somewhere else, they can install it themselves, outside the-one-skill.
 3. **Compare candidates against the user's actual corrections.** Use a table: which corrections each candidate fixes, which it doesn't, who publishes it, and when it was last updated. Be honest when nothing covers everything, and say what would close the gap (a small local addition, a hook, or a rule).
 4. **Read before installing (policy invariant 11).** Read every file of the chosen skill. Summarize its instructions, scripts, network access, and anything it would run or install. Flag anything that reaches beyond its stated purpose. Run `overlap --candidate <folder>` and name any skill of the user's it would compete with or duplicate, with what you'd do about it (a boundary, or retiring the old one in the same change set).
-5. **Install as a new skill** after a yes. Show the files if asked. Install through the host's own installer if it has one, or else as a created skill (strategy A: `new <name> --from <folder>`, then `apply <name> --note "<source> <version>"`).
+5. **Install as a new skill** after a yes. Show the files if asked. Install through the host's own installer if it has one, or else as a created skill (strategy A: `new <name> --from <folder> --published`, then `apply <name> --note "<source> <version>"`). `--published` keeps that copy as the base for later updates from the publisher.
    - **Install it exactly as published first.** Any tweaks (the user's requests, a boundary for a neighbour, or removing something you flagged) go in afterwards as a separate change, under the same change set. Then the kept versions are "as published" and "with tweaks", so "undo my tweaks" leaves the published skill in place, and an update from the source can be compared with what was installed. One yes covers both steps.
-6. **Verify.** Confirm the skill is listed and enabled. Update the roster map. Tell the user it loads in a new session, and that retiring it undoes the install.
+6. **Verify.** Confirm the skill is listed and enabled. Update the roster map, and record the install in the verified-skills list. Tell the user it loads in a new session, and that retiring it undoes the install.
 
 Never install a skill that Anthropic, OpenAI, or Google didn't publish. Never run a skill's scripts in order to evaluate it.
+
+## The verified-skills list
+`references/agentspace/verified-skills.md` remembers the skills from Anthropic, OpenAI, and Google that you have already read, so later sessions start from it instead of searching from nothing. Create it the first time you read a candidate, as part of that change's yes, and list it in the index ("Read when: before searching for, creating, or updating a skill").
+
+```markdown
+# Verified skills
+Purpose: skills from Anthropic, OpenAI, or Google already read, and what was decided.
+Updated: <YYYY-MM-DD>
+
+| Skill | Publisher | Where (link and version or commit) | What it does | Checked | Decision |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| pdf | Anthropic | github.com/anthropics/skills/... @ <commit> | Read, fill, merge PDFs | 2026-11-17 | installed as `pdf`, with tweaks |
+```
+
+- Decisions are: installed, adapted, borrowed from (for which skill), or rejected (with why, in a few words).
+- An entry is a pointer, not a copy. Read the skill again from its source before installing, adapting, or borrowing from it.
+- Re-check an entry when it's more than 90 days old, or when the user asks for updates.
+- It names only skills from the three publishers. The policy's source rule still decides what counts.
+
+## Update a skill from its publisher
+For a skill installed or adapted from a publisher, a newer release can be merged in. The publisher's changes go in, and the user's tweaks stay.
+
+1. **Find the newer release** at the source recorded in the verified-skills list. Check only when the user asks, or when a review offers it and the user says yes. Don't check on your own each session.
+2. **Read every file of the new release** (policy invariant 11), and its changelog if it has one. Check it is still from the same publisher.
+3. **Merge.** On strategy A: `upgrade <name> --from <folder>`. It merges three ways against the version installed with `--published`: the publisher's changes go in, the user's tweaks stay, and lines both changed become conflict markers in the draft. Resolve them in the draft only when the intent is clear, otherwise name them. Then run `list`, `overlap --candidate <name>`, and `case run <name>`, as for any change.
+4. **Tell the user in a few plain lines:** what's new, which of their tweaks stay, and anything that conflicts. One yes applies it. "Undo the update" is `use <name> previous`.
+5. **Update** the verified-skills list (version, date) after applying.
+
+A skill installed before `--published` existed has no recorded base. Its first upgrade treats every difference as a conflict to resolve. Say so in your proposal, then apply as above. Later upgrades merge cleanly.
 
 ## Merge several skills
 1. **Read every skill involved, including its references.** Also list protected skills that cover the same ground (for example a built-in skill for the same file type). Protected skills are never merged. The merged skill should defer to them, or say how it differs from them.
