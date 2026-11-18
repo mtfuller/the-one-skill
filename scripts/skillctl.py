@@ -33,7 +33,7 @@ How it works
 
 Commands
 --------
-    python3 scripts/skillctl.py --root <skills_folder> list [--json]
+    python3 scripts/skillctl.py --root <skills_folder> list [--json] [--languages python,bash]
     python3 scripts/skillctl.py --root <skills_folder> overlap [--candidate <skill|folder>] [--also <folder> ...] [--json]
     python3 scripts/skillctl.py --root <skills_folder> status
     python3 scripts/skillctl.py --root <skills_folder> draft <skill>
@@ -124,6 +124,22 @@ TEMPLATE_MARKERS = ("<What it does", "<One or two sentences", "<What the skill n
                     "<the part that must", "<The exact shape", "<A case that went wrong", "references/<topic>.md",
                     "scripts/<script>.py")
 CODE_SUFFIXES = _overlap.CODE_SUFFIXES
+LANGUAGES = {  # name -> script file suffixes, for `list --languages`
+    "python": (".py",), "bash": (".sh", ".bash"), "sh": (".sh",), "javascript": (".js", ".mjs", ".cjs"),
+    "node": (".js", ".mjs", ".cjs"), "typescript": (".ts",), "ruby": (".rb",), "perl": (".pl",),
+    "powershell": (".ps1",), "r": (".r",), "go": (".go",), "rust": (".rs",), "java": (".java",),
+    "kotlin": (".kt",), "swift": (".swift",), "php": (".php",), "lua": (".lua",), "sql": (".sql",),
+}
+
+
+def language_suffixes(languages: Sequence[str]) -> set[str]:
+    """File suffixes for language names such as "python,bash"; refuses names it doesn't know."""
+    out: set[str] = set()
+    for name in (n.strip().lower() for n in languages if n.strip()):
+        if name not in LANGUAGES:
+            raise Refused(f"Unknown script language `{name}`; known: {', '.join(sorted(LANGUAGES))}.")
+        out.update(LANGUAGES[name])
+    return out
 ABSOLUTE_PATH_RE = re.compile(r"(?<![\w.~])(/home/[^\s`'\")]+|/Users/[^\s`'\")]+|[A-Za-z]:\\\\Users\\\\[^\s`'\")]+)")
 
 
@@ -979,8 +995,12 @@ class SkillCtl:
                     walk(rec, when[:10] if isinstance(when, str) else None)
         return seen
 
-    def roster(self) -> list[dict[str, Any]]:
-        """Every skill in the skills folder with its state and any problems found."""
+    def roster(self, languages: Sequence[str] = ()) -> list[dict[str, Any]]:
+        """Every skill in the skills folder with its state and any problems found.
+
+        `languages`: the script languages this host can run (from the adapter). Scripts in any other
+        language are flagged, because the host would fail to run them."""
+        allowed = language_suffixes(languages) if languages else None
         rows = []
         for p in sorted(self.root.iterdir()):
             if not p.is_dir() or p.name.startswith("."):
@@ -1010,6 +1030,11 @@ class SkillCtl:
                 if n > MAX_SKILL_LINES:
                     issues.append(f"SKILL.md has {n} lines (> {MAX_SKILL_LINES})")
                 issues.extend(structure_issues(p))
+            if allowed is not None:
+                for rel in sorted(files_of(p)):
+                    suffix = Path(rel).suffix.lower()
+                    if suffix in CODE_SUFFIXES and suffix not in allowed:
+                        issues.append(f"`{rel}` is in a language this host can't run (it runs: {', '.join(languages)})")
             st = self.state(p.name)
             rows.append({
                 "name": p.name,
@@ -1026,7 +1051,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--store", help=f"Store folder (default: <project>/{STORE_DIRNAME} for <project>/.claude/skills)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
-    sub.add_parser("list").add_argument("--json", action="store_true", help="Machine-readable output")
+    p = sub.add_parser("list")
+    p.add_argument("--json", action="store_true", help="Machine-readable output")
+    p.add_argument("--languages", help="Script languages this host runs, e.g. python,bash (flags any other)")
     rec = argparse.ArgumentParser(add_help=False)
     rec.add_argument("--set", dest="change_set", help="Record this step in a change set, e.g. merge-csv-skills")
     rec.add_argument("--note", help="Why (stored with the change set)")
@@ -1073,7 +1100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             rows = ctl.status()
             print("\n".join(f"{n:32} {s}" for n, s in rows) if rows else "No skills changed by the-one-skill yet.")
         elif a.cmd == "list":
-            rows = ctl.roster()
+            rows = ctl.roster(a.languages.split(",") if a.languages else ())
             if a.json:
                 print(json.dumps(rows, indent=2))
             elif not rows:

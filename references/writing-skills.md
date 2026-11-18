@@ -37,6 +37,7 @@ Prose gets followed slightly differently each run. Code runs the same way every 
 When you propose a change, say in one plain line if part of it becomes a script, and why ("Counting rows is now done by a small script, so the header is never counted again").
 
 ### How to write a script
+- **Only a language every host can run.** Hosts differ in which script languages a skill may use, and that can change. Use only languages the adapter lists under "Script languages" for this host. If the user uses the skill on more than one host (other adapters in agentspace), use a language they all list. Python is the most widely supported, so prefer it when there's a choice. If the adapter doesn't record the languages yet, find out first (`references/building-adapters.md` §2). Don't guess from what you know about the vendor.
 - **Standard library first.** If the script needs a package, say so in `SKILL.md` and check the host can install it. If it can't, keep the step in prose.
 - **Inputs as arguments, results on stdout.** Print exactly what the next step needs: plain text in a fixed layout, or JSON. Print errors to stderr and exit non-zero, with a message that says what to fix.
 - **Never change the input files.** Write output to a new file or to stdout.
@@ -50,9 +51,9 @@ When you propose a change, say in one plain line if part of it becomes a script,
 2. Compare the output with what the user wanted. If it doesn't match, fix it before proposing. Never propose an untested script.
 3. In the proposal, say in a few words that it was tested on the user's own file.
 
-If the host can't run code, don't add scripts: keep the step in prose and say why in one line. Never run a script from a skill that is not installed yet (policy invariant 11). Read it instead.
+If the host can't run code, or can't run any language the script could be written in, don't add scripts: keep the step in prose and say why in one line. Never run a script from a skill that is not installed yet (policy invariant 11). Read it instead.
 
 ## Before you propose
-- `list` shows no problems for the skill.
+- `list` shows no problems for the skill. On strategy A, pass `--languages` with the adapter's script languages.
 - `overlap --candidate <skill>` comes back clean, or each finding is explained.
 - No template placeholders are left (`list` flags them).

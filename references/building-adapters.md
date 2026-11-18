@@ -30,6 +30,7 @@ Answer each question from observation (a tool's schema, a listing, a read-back).
 | Must skill names be unique? | Twin naming |
 | Can I reach the skills folder on a filesystem? Does a change there last into a new session? | Store & swap |
 | Can I run Python 3, and does it see the same files as the skills folder? | `scripts/skillctl.py` |
+| Which script languages can a skill's scripts use here (for example Python, bash, JavaScript)? Check where skills actually run, which may be a different sandbox from your own shell: a documented list, or a `tos-probe` skill with one tiny script per language. | Scripts in skills (`references/writing-skills.md`) |
 | With no skill tools, does the host have its own way to write skills (a built-in skill-creator, a "create with chat" mode)? Can it update an existing skill, and does it keep every file? | Authoring workflow (§3) |
 | Which skills, connectors, or plugins are managed by someone else (organization, plugin, platform)? | Protected list |
 
@@ -62,7 +63,7 @@ When you use it:
 - **Verify.** Read the saved skill back, file by file. Then confirm in a new session that the host loads the new version.
 - **Record it** in the adapter, with the exact steps that worked.
 
-**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json]` (also checks structure), `overlap [--candidate <skill|folder>] [--also <folder> …] [--json]`, `usage [--transcripts <folder>]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder> [--published]]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`, `move-store [--to <dir>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
+**Strategy A commands** (`python3 scripts/skillctl.py --root <skills_folder> <command>`): `list [--json] [--languages <a,b>]` (also checks structure, and scripts in languages the host can't run), `overlap [--candidate <skill|folder>] [--also <folder> …] [--json]`, `usage [--transcripts <folder>]`, `status`, `draft`, `diff`, `apply`, `use <skill> original|previous|tuned|<version>`, `history`, `new <skill> [--from <folder> [--published]]`, `retire`, `restore`, `sets`, `undo-set <name> [--apply]`, `upgrade <skill> --from <folder> [--keep <path>]`, `move-store [--to <dir>]`. `apply`, `use`, `retire`, and `restore` take `--set <name> [--note "<why>"]` to group steps into an undoable change set. The store keeps the original plus the last 5 applied versions of each skill.
 
 Call the script with absolute paths and nothing chained in front of it (no `cd …;` or `&&`). Permission allow rules match the start of a command, so a leading `cd` stops them from applying. The script refuses to overwrite hand edits, refuses to change `readonly-*` files, and keeps a skill's `.git` folder. `draft` creates the store on first use. By default it is `<project>/.tos-store` for `<project>/.claude/skills` (for personal skills in `~/.claude/skills`, that's `~/.tos-store`). It sits outside `.claude/`, so editing drafts doesn't trigger Claude Code's permission prompts. In a project, add `.tos-store/` to the project's ignore file as part of the setup, and mention that in a few words. If an older store exists at `.claude/the-one-skill-store`, `skillctl` keeps using it. Offer `move-store` once, in the same message as the next change.
 
@@ -101,6 +102,7 @@ Other skill folders (read-only, compared for overlap): <personal, plugin, or bui
 - **Retire / restore:** ...
 - **Permissions:** prompts or policies to expect, and the allow rule the user added (if any): ...
 - **Guard:** installed in <settings file> | not available: ...
+- **Script languages:** <python, bash, ...> (verified | documented): where skills' scripts run, and any limits (packages, network)
 - **Usage:** transcripts at <folder>, user agreed on <date> | not available | user declined: ...
 - **the-one-skill release installed:** <version> (the base for the next update)
 - **Change the-one-skill itself:** ...

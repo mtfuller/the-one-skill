@@ -740,6 +740,17 @@ class StructureTest(unittest.TestCase):
         self.assertIn("absolute path", got)
         self.assertIn("characters (> 1024)", got)
 
+    def test_scripts_in_languages_the_host_cant_run(self) -> None:
+        self.make("multi", "Run `python3 scripts/a.py`, then `node scripts/b.js`, then `bash scripts/c.sh`.\n",
+                  {"scripts/a.py": "print(1)\n", "scripts/b.js": "console.log(1)\n", "scripts/c.sh": "echo 1\n"})
+        self.assertEqual(self.issues("multi"), [])  # no languages given: nothing to check against
+        rows = {r["name"]: r for r in self.ctl.roster(["python", "bash"])}
+        self.assertEqual(rows["multi"]["issues"],
+                         ["`scripts/b.js` is in a language this host can't run (it runs: python, bash)"])
+        with self.assertRaises(Refused):
+            self.ctl.roster(["cobol"])
+        self.assertEqual(skillctl.main(["--root", str(self.root), "list", "--languages", "python,bash"]), 0)
+
     def test_wildcards_and_agentspace_are_not_broken_links(self) -> None:
         self.make("calm", "Never edit `references/readonly-*.md`. Notes go in references/agentspace/notes.md.\n")
         self.assertEqual(self.issues("calm"), [])
