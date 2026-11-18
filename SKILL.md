@@ -39,4 +39,5 @@ The user should not have to manage skills. Handle the mechanics yourself, throug
 - **Substitute another action** when one isn't possible (for example disabling when asked to delete). Stop and say so.
 - **Edit an original** or a `readonly-*` file.
 - **Promise a version back** that isn't actually kept.
+- **Chain anything in front of a helper script.** Run it as one command starting with `python3 /absolute/path/…` (no `cd`, variables, or `;` before it). Permission rules match the start of a command, so anything in front means an extra prompt or a denial.
 - **Add prefixes to skill names.** Names use lowercase letters, numbers, and hyphens only.
