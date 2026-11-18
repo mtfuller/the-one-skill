@@ -16,7 +16,7 @@ Find where skills fell short, fix them with the user's yes, manage the roster, a
 | The user wants to… | Read |
 | :--- | :--- |
 | Reflect on a session, fix or improve a skill (including this one) | `references/improving.md` |
-| Write or restructure a skill's files: description, sections, scripts, cases | `references/writing-skills.md` |
+| Write or restructure a skill's files: description, sections, scripts | `references/writing-skills.md` |
 | Undo a rule, a skill, a multi-skill change, or everything | `references/undoing.md` |
 | Review, create, find and install, update from its publisher, merge, extract a shared policy, split, rename, retire, or restore skills | `references/managing-roster.md` |
 | Update the-one-skill from a release they downloaded (folder, zip, or bundle) | `references/updating.md` |

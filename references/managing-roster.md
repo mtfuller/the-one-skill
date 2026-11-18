@@ -71,7 +71,7 @@ Updated: <YYYY-MM-DD>
 | Operation | How (always with approval) | Strategy A |
 | :--- | :--- | :--- |
 | **Improve** | `references/improving.md`. | `draft` → edit → `overlap --candidate` → `apply` |
-| **Create** | See below, and `references/writing-skills.md` for the files. | `new <name>` → write files → `list`, `overlap --candidate <name>`, `case run` → `apply` |
+| **Create** | See below, and `references/writing-skills.md` for the files. | `new <name>` → write files → `list`, `overlap --candidate <name>` → `apply` |
 | **Find and install** | See below. | `overlap --candidate <folder>`, then `new <name> --from <folder> --published` |
 | **Update from publisher** | See below. | `upgrade <name> --from <folder>` → `apply` |
 | **Merge** | See below. | `new` or `draft`, then `retire` each |
@@ -106,7 +106,7 @@ Don't write from a blank page when Anthropic, OpenAI, or Google has already solv
    | **Scratch** | Nothing close exists | Write it, following the authoring guidance from step 2 |
 
 4. **Draft the whole skill** following `references/writing-skills.md`. The description says what it does, "Use when …", and "Do not use when … (use `<neighbour>`)" for each neighbour from step 1. Policies another skill owns are deferred to, never copied. Fill the sections from the session that prompted the skill: the user's actual corrections are the best requirements. Put deterministic steps in scripts, tested on the session's real input.
-5. **Check it** (writing-skills.md, "Before you propose"): the structure check is clean, `overlap --candidate <name>` is clean or every finding is explained in your proposal, and each correction from the session is saved as a case that passes.
+5. **Check it** (writing-skills.md, "Before you propose"): the structure check is clean, and `overlap --candidate <name>` is clean or every finding is explained in your proposal.
 6. **Propose in one message:** what the skill will do, where it started from, and what it hands off. Create it after a yes, update the roster map in the same change, and track it as created by the-one-skill, so going back to vanilla can find it. Show its files if asked.
 
 ## Find and install a skill from Anthropic, OpenAI, or Google
@@ -151,7 +151,7 @@ For a skill installed or adapted from a publisher, a newer release can be merged
 
 1. **Find the newer release** at the source recorded in the verified-skills list. Check only when the user asks, or when a review offers it and the user says yes. Don't check on your own each session.
 2. **Read every file of the new release** (policy invariant 11), and its changelog if it has one. Check it is still from the same publisher.
-3. **Merge.** On strategy A: `upgrade <name> --from <folder>`. It merges three ways against the version installed with `--published`: the publisher's changes go in, the user's tweaks stay, and lines both changed become conflict markers in the draft. Resolve them in the draft only when the intent is clear, otherwise name them. Then run `list`, `overlap --candidate <name>`, and `case run <name>`, as for any change.
+3. **Merge.** On strategy A: `upgrade <name> --from <folder>`. It merges three ways against the version installed with `--published`: the publisher's changes go in, the user's tweaks stay, and lines both changed become conflict markers in the draft. Resolve them in the draft only when the intent is clear, otherwise name them. Then run `list` and `overlap --candidate <name>`, as for any change.
 4. **Tell the user in a few plain lines:** what's new, which of their tweaks stay, and anything that conflicts. One yes applies it. "Undo the update" is `use <name> previous`.
 5. **Update** the verified-skills list (version, date) after applying.
 

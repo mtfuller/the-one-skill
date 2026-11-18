@@ -42,8 +42,6 @@ It remembers the verified skills it has already read, and what it decided about 
 ### ⚙️ Scripts for what must be exact: *what is forged does not waver*
 Instructions get followed slightly differently each run, and code runs the same way every time. When a correction was mechanical (a count, a date format, a parse, a file layout), or the same code got written twice, it moves that step into a small script. It tests the script on the file from your session before proposing it. The instructions keep the judgement, and the scripts do the mechanical work. Every new skill starts from a template built that way: inputs, steps, output with an example, edge cases, and where each script and reference fits.
 
-Each fix is also saved as a **case**: what you asked, your input, and what a good result does. Script cases record the expected output. Every later change to that skill is checked against them, so an old correction can't quietly come back.
-
 ### 🩺 Structure checks: *every road leads somewhere*
 Reviewing your skills also catches skills whose files don't fit together:
 - pointers to files that don't exist

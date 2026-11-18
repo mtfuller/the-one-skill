@@ -10,7 +10,6 @@ Plain-language notes for each release. the-one-skill reads these when you ask it
 - Compares against your personal, plugin, and built-in skill folders too (read-only), and reports the same skill name in two places.
 - Flags scripts copied across skills as the same procedure.
 - Moves deterministic steps (counting, parsing, formatting, validating) into small scripts, and tests them on your real input before proposing. A new guide covers how to write a skill's description, sections, and scripts. New skills start from a template with inputs, steps, output, edge cases, and where scripts and references fit.
-- Saves each fix as a case: what you asked, your input, and what a good result does. Every later change to that skill is checked against them, so old corrections stay fixed.
 - The roster review also checks how each skill's files fit together: missing files, files nothing mentions, scripts with no run line, leftover template text, overlong descriptions, and machine-specific paths.
 - Remembers the publisher skills it has already read, and what it decided, so later sessions don't search from scratch.
 - Skills installed or adapted from a publisher can take the publisher's newer release while keeping your tweaks.

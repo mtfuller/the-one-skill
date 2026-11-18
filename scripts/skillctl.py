@@ -26,8 +26,6 @@ How it works
   roster before it is proposed; `--also` adds read-only folders (personal, plugin, built-in skills).
 * `new --from <folder> --published` installs a skill exactly as its publisher released it and keeps
   that copy as the base, so a later `upgrade` from the publisher keeps your tweaks.
-* `case add` keeps what a change fixed (the request, its input files, what a good result does, and
-  optionally a command with recorded output) in the store; `case run` checks a draft against them.
 * `usage` counts how often, and when last, each skill was used in Claude Code transcripts.
 * `--set <name>` on apply/use/retire/restore records the step in a change set (in the store, so it
   needs no extra approval). `sets` lists them; `undo-set <name>` shows the reverse steps and
@@ -44,7 +42,6 @@ Commands
     python3 scripts/skillctl.py --root <skills_folder> use <skill> original|previous|tuned|<version>
     python3 scripts/skillctl.py --root <skills_folder> history <skill>
     python3 scripts/skillctl.py --root <skills_folder> new <skill> [--from <folder> [--published]]
-    python3 scripts/skillctl.py --root <skills_folder> case add|list|run|remove <skill> ...
     python3 scripts/skillctl.py --root <skills_folder> usage [--transcripts ~/.claude/projects] [--json]
     python3 scripts/skillctl.py --root <skills_folder> sets
     python3 scripts/skillctl.py --root <skills_folder> guard     (prints the Claude Code hook setting)
@@ -70,9 +67,6 @@ from typing import Any, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import overlap as _overlap  # noqa: E402
-import subprocess  # noqa: E402
-import shlex  # noqa: E402
-import tempfile  # noqa: E402
 
 STORE_DIRNAME = ".tos-store"
 LEGACY_STORE_DIRNAME = "the-one-skill-store"
@@ -98,7 +92,6 @@ MAX_SKILL_LINES = 500
 SETS_FILE = "changesets.json"
 KEEP_APPLIED = 5  # applied versions kept per skill, besides the original
 MAX_DESCRIPTION = 1024  # Claude's limit for a skill description; other hosts are similar or larger
-CASES_DIR = "_cases"    # in the store; the underscore keeps it from ever matching a skill name
 NEW_SKILL_TEMPLATE = """---
 name: {name}
 description: <What it does, in the words a user would use>. Use when <the requests and situations that call for it>. Do not use when <a neighbouring job> (use <other-skill>).
@@ -933,109 +926,6 @@ class SkillCtl:
         roots = [(self.root, "roster", False)] + [(Path(a).expanduser().resolve(), str(a), True) for a in also]
         return _overlap.analyze(_overlap.skills_for(roots, cand), cand.name if cand else None)
 
-    # ----- cases: what a change fixed, checked again on every later change -----
-    def _case_dir(self, skill: str, case: str | None = None) -> Path:
-        d = self.store / CASES_DIR / skill
-        return d / case if case else d
-
-    def case_add(self, skill: str, case: str, prompt: str, expect: Sequence[str] = (),
-                 files: Sequence[str | Path] = (), run: str | None = None, record: bool = False) -> Path:
-        """Save a case: the request, its input files, and what a good result must do.
-
-        With `run`, the case is checked by running a command (placeholders {skill} and {inputs});
-        `record` saves the command's current output (from the draft if there is one) as expected."""
-        if not NAME_RE.match(skill) or not NAME_RE.match(case):
-            raise Refused("Skill and case names use lowercase letters, numbers, and hyphens.")
-        if record and not run:
-            raise Refused("--record needs --run.")
-        if not expect and not run:
-            raise Refused("Give at least one --expect, or a --run command.")
-        d = self._case_dir(skill, case)
-        if d.exists():
-            raise Refused(f"Case `{case}` already exists for `{skill}`; `case remove` it first or choose another name.")
-        srcs = [Path(f).expanduser().resolve() for f in files]
-        for f in srcs:
-            if not f.is_file():
-                raise Refused(f"{f} is not a file.")
-        (d / "inputs").mkdir(parents=True)
-        try:
-            for f in srcs:
-                shutil.copy2(f, d / "inputs" / f.name)
-            data: dict[str, Any] = {"prompt": prompt, "expect": list(expect), "run": run,
-                                    "added": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
-            if record:
-                out = self._run_case(skill, data, d / "inputs", self._case_target(skill))
-                if out["code"] != 0:
-                    raise Refused(f"The command failed (exit {out['code']}), so nothing was recorded:\n{out['stderr']}")
-                data["stdout"] = out["stdout"]
-            (d / "case.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-        except BaseException:
-            shutil.rmtree(d, ignore_errors=True)
-            raise
-        return d
-
-    def cases(self, skill: str) -> dict[str, dict[str, Any]]:
-        d = self._case_dir(skill)
-        if not d.is_dir():
-            return {}
-        return {c.name: json.loads((c / "case.json").read_text(encoding="utf-8"))
-                for c in sorted(d.iterdir()) if (c / "case.json").is_file()}
-
-    def case_remove(self, skill: str, case: str) -> None:
-        d = self._case_dir(skill, case)
-        if not (d / "case.json").is_file():
-            raise Refused(f"No case `{case}` for `{skill}`.")
-        shutil.rmtree(d)
-
-    def _case_target(self, skill: str, installed: bool = False) -> Path:
-        draft = self.sdir(skill) / "draft"
-        target = self.installed(skill) if installed or not draft.is_dir() else draft
-        if not (target / "SKILL.md").is_file():
-            raise Refused(f"No `{skill}` to check (neither a draft nor an installed skill).")
-        return target
-
-    @staticmethod
-    def _run_case(skill: str, data: dict[str, Any], inputs: Path, target: Path) -> dict[str, Any]:
-        """Run a case's command on a throwaway copy of the skill and its inputs."""
-        with tempfile.TemporaryDirectory(prefix="tos-case-") as tmp:
-            work = Path(tmp)
-            shutil.copytree(target, work / skill, ignore=_ignore)
-            shutil.copytree(inputs, work / "inputs")
-            args = [a.replace("{skill}", str(work / skill)).replace("{inputs}", str(work / "inputs"))
-                    for a in shlex.split(data["run"])]
-            try:
-                r = subprocess.run(args, cwd=work / "inputs", capture_output=True, text=True, timeout=120)
-            except FileNotFoundError as e:
-                return {"code": 127, "stdout": "", "stderr": str(e)}
-            except subprocess.TimeoutExpired:
-                return {"code": 124, "stdout": "", "stderr": "timed out after 120 s"}
-            return {"code": r.returncode, "stdout": r.stdout.replace(str(work), "<work>"),
-                    "stderr": r.stderr.replace(str(work), "<work>")}
-
-    def case_run(self, skill: str, installed: bool = False) -> list[dict[str, Any]]:
-        """Check every case against the draft (default, if any) or the installed skill.
-
-        Cases with a recorded output are checked here; the rest are listed for the model to check
-        by doing the request and reading the result against each expectation."""
-        cases = self.cases(skill)
-        if not cases:
-            return []
-        target = self._case_target(skill, installed)
-        rows = []
-        for name, data in cases.items():
-            row: dict[str, Any] = {"case": name, "prompt": data["prompt"], "expect": data["expect"]}
-            if data.get("run") and "stdout" in data:
-                out = self._run_case(skill, data, self._case_dir(skill, name) / "inputs", target)
-                ok = out["code"] == 0 and out["stdout"] == data["stdout"]
-                row["result"] = "pass" if ok else "FAIL"
-                if not ok:
-                    row["detail"] = out["stderr"].strip() or "".join(difflib.unified_diff(
-                        data["stdout"].splitlines(True), out["stdout"].splitlines(True), "expected", "now"))
-            else:
-                row["result"] = "check by hand"
-            rows.append(row)
-        return rows
-
     # ----- usage -----
     @staticmethod
     def usage(transcripts: str | Path) -> dict[str, dict[str, Any]]:
@@ -1165,24 +1055,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--from", dest="source", help="Folder with the new skill's files (default: a SKILL.md template)")
     p.add_argument("--published", action="store_true",
                    help="The folder is the skill exactly as its publisher released it (base for later `upgrade`s)")
-    p = sub.add_parser("case", help="Cases a skill must keep passing: add, list, run, remove")
-    csub = p.add_subparsers(dest="case_cmd", required=True)
-    q = csub.add_parser("add")
-    q.add_argument("skill")
-    q.add_argument("case")
-    q.add_argument("--prompt", required=True, help="What the user asked")
-    q.add_argument("--expect", action="append", default=[], help="One thing a good result does (repeatable)")
-    q.add_argument("--file", action="append", default=[], help="Input file to keep with the case (repeatable)")
-    q.add_argument("--run", help="Command that checks it; {skill} and {inputs} are throwaway copies")
-    q.add_argument("--record", action="store_true", help="Save the command's current output as expected")
-    q = csub.add_parser("list")
-    q.add_argument("skill")
-    q = csub.add_parser("run")
-    q.add_argument("skill")
-    q.add_argument("--installed", action="store_true", help="Check the installed skill, not the draft")
-    q = csub.add_parser("remove")
-    q.add_argument("skill")
-    q.add_argument("case")
     p = sub.add_parser("usage", help="How often each skill was used, from Claude Code transcripts (read-only)")
     p.add_argument("--transcripts", default="~/.claude/projects", help="Folder of *.jsonl transcripts")
     p.add_argument("--json", action="store_true")
@@ -1266,35 +1138,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif a.cmd == "new":
             print(f"New skill draft: {ctl.new(a.skill, a.source, a.published)}\n"
                   "Write its files there, show `diff`, and `apply` after approval.")
-        elif a.cmd == "case":
-            if a.case_cmd == "add":
-                d = ctl.case_add(a.skill, a.case, a.prompt, a.expect, a.file, a.run, a.record)
-                print(f"Case saved: {d}")
-            elif a.case_cmd == "remove":
-                ctl.case_remove(a.skill, a.case)
-                print(f"Case `{a.case}` removed.")
-            elif a.case_cmd == "list":
-                cases = ctl.cases(a.skill)
-                if not cases:
-                    print(f"No cases for `{a.skill}`.")
-                for n, c in cases.items():
-                    print(f"{n:28} {c['prompt']}")
-                    for e in c["expect"]:
-                        print(f"{'':28} - {e}")
-                    if c.get("run"):
-                        print(f"{'':28} $ {c['run']}" + ("  (output recorded)" if "stdout" in c else ""))
-            else:
-                rows = ctl.case_run(a.skill, a.installed)
-                if not rows:
-                    print(f"No cases for `{a.skill}`.")
-                for r in rows:
-                    print(f"{r['result']:14} {r['case']}: {r['prompt']}")
-                    for e in r["expect"]:
-                        print(f"{'':14} - {e}")
-                    if r.get("detail"):
-                        print("\n".join(f"{'':14} | {l}" for l in r["detail"].splitlines()))
-                if any(r["result"] == "FAIL" for r in rows):
-                    return 1
         elif a.cmd == "usage":
             used = ctl.usage(a.transcripts)
             installed = {r["name"] for r in ctl.roster()}

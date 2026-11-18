@@ -802,57 +802,6 @@ class PublishedUpgradeTest(unittest.TestCase):
         self.assertIn("3. Dates as YYYY-MM-DD.", merged)
 
 
-class CaseTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp())
-        self.root = self.tmp / "skills"
-        d = self.root / "csv-count"
-        (d / "scripts").mkdir(parents=True)
-        (d / "SKILL.md").write_text(skill_md("csv-count", "Count CSV rows. Use when asked.",
-                                             "Run `python3 scripts/count.py <file>`.\n"))
-        (d / "scripts" / "count.py").write_text(
-            "import sys\nrows = open(sys.argv[1]).read().splitlines()\nprint(f'rows: {len(rows) - 1}')\n")
-        self.data = self.tmp / "data.csv"
-        self.data.write_text("a,b\n1,2\n3,4\n")
-        self.ctl = SkillCtl(self.root)
-
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp)
-
-    def test_recorded_case_catches_a_regression_in_a_draft(self) -> None:
-        run = f"{sys.executable} {{skill}}/scripts/count.py data.csv"
-        self.ctl.case_add("csv-count", "header-not-counted", "How many rows?", ["the header is not a row"],
-                          [self.data], run, record=True)
-        self.ctl.case_add("csv-count", "plain-answer", "How many rows?", ["answers with one number"])
-        self.assertEqual(self.ctl.cases("csv-count")["header-not-counted"]["stdout"], "rows: 2\n")
-        rows = {r["case"]: r["result"] for r in self.ctl.case_run("csv-count")}
-        self.assertEqual(rows, {"header-not-counted": "pass", "plain-answer": "check by hand"})
-        d = self.ctl.draft("csv-count")
-        (d / "scripts" / "count.py").write_text(
-            "import sys\nprint(f'rows: {len(open(sys.argv[1]).read().splitlines())}')\n")
-        bad = next(r for r in self.ctl.case_run("csv-count") if r["case"] == "header-not-counted")
-        self.assertEqual(bad["result"], "FAIL")
-        self.assertIn("rows: 3", bad["detail"])
-        ok = next(r for r in self.ctl.case_run("csv-count", installed=True) if r["case"] == "header-not-counted")
-        self.assertEqual(ok["result"], "pass")
-        self.assertEqual(self.ctl.status(), [("csv-count", "original (draft in progress)")])  # cases aren't a skill
-        args = ["--root", str(self.root)]
-        self.assertEqual(skillctl.main(args + ["case", "run", "csv-count"]), 1)
-        self.assertEqual(skillctl.main(args + ["case", "list", "csv-count"]), 0)
-        self.ctl.case_remove("csv-count", "plain-answer")
-        self.assertEqual(list(self.ctl.cases("csv-count")), ["header-not-counted"])
-
-    def test_case_refusals(self) -> None:
-        with self.assertRaises(Refused):
-            self.ctl.case_add("csv-count", "x", "p")  # no expectation, no command
-        with self.assertRaises(Refused):
-            self.ctl.case_add("csv-count", "x", "p", ["e"], record=True)  # record needs run
-        with self.assertRaises(Refused):
-            self.ctl.case_add("csv-count", "x", "p", ["e"], run=f"{sys.executable} -c 'import sys; sys.exit(3)'",
-                              record=True)
-        self.assertEqual(self.ctl.cases("csv-count"), {})  # nothing half-saved
-
-
 class UsageTest(unittest.TestCase):
     def test_counts_skill_calls_slash_commands_and_reads(self) -> None:
         tmp = Path(tempfile.mkdtemp())

@@ -48,22 +48,11 @@ When you propose a change, say in one plain line if part of it becomes a script,
 ### Test it before you propose it
 1. Run the script on the real input from the session (a copy of it, never the original), and on the case the user corrected.
 2. Compare the output with what the user wanted. If it doesn't match, fix it before proposing. Never propose an untested script.
-3. Save what it fixed as a case (below), so later changes can't quietly break it.
-4. In the proposal, say in a few words that it was tested on the user's own file.
+3. In the proposal, say in a few words that it was tested on the user's own file.
 
 If the host can't run code, don't add scripts: keep the step in prose and say why in one line. Never run a script from a skill that is not installed yet (policy invariant 11). Read it instead.
-
-## Cases: keep each fix fixed
-A case records one thing a change fixed: what the user asked, the input files, and what a good result does. Cases live in the store, outside the skill, so they never load as part of it. On strategy A:
-- **Save one with every fix:** `case add <skill> <case> --prompt "<what the user asked>" --expect "<what a good result does>" [--file <input>]…`. Use a short name that describes the fix, such as `header-not-counted`. Saving a case is part of the change the user already approved. Don't ask about it separately.
-- **For a script, record its output:** add `--run "python3 {skill}/scripts/<script>.py <args>" --record`. `{skill}` and `{inputs}` are throwaway copies of the skill and the input files, and the command runs inside the inputs folder. The output is recorded from the draft, so record it only after the draft gives the right result.
-- **Before proposing any later change to the skill:** `case run <skill>` checks the draft. A recorded case passes or fails on its own. For each "check by hand" case, do the request in your head against the draft and confirm every expectation still holds. A failing case means the change breaks an earlier fix: fix the draft, or name the conflict in your proposal ("this undoes the earlier rule that the header isn't counted").
-- **Cases follow the user, not the code.** If the user changes their mind about something a case protects, remove that case with `case remove` in the same change, and say so in your proposal.
-
-On other strategies there is no store. Note each case's prompt and expectations in the roster map, under the skill's row, and check them by hand.
 
 ## Before you propose
 - `list` shows no problems for the skill.
 - `overlap --candidate <skill>` comes back clean, or each finding is explained.
-- `case run <skill>` passes, and every "check by hand" case still holds.
 - No template placeholders are left (`list` flags them).
