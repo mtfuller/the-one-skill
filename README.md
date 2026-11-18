@@ -50,23 +50,29 @@ Every change follows the same small road. It describes the change in plain words
 
 ---
 
-## 🧝 The Fellowship: what it can do
+## 🧝 What it can do for you
 
-| | Power | In one line |
-| :---: | :--- | :--- |
-| 🔥 | **The Hearth**: reflect and improve | Learns from your corrections and fixes the skill that caused them |
-| 🏰 | **The Council**: keep the roster in order | Finds skills that clash, overlap, or repeat each other, and gives each job one owner |
-| ⚒️ | **The Forge**: create from verified work | Builds new skills from the best published work, with tested scripts where things must be exact |
-| 🔥🔥 | **The Beacons**: your connected tools | Offers to wire skills into the calendar, tasks, mail, and docs you already use |
-| 🏹 | **Aid from trusted realms**: find and install | Installs only skills Anthropic, OpenAI, or Google publish, after reading every file |
-| 🏛️ | **The Vault**: undo anything | One rule, one skill, one merge, or everything back to vanilla |
-| 🧭 | **Map-making**: any host | Studies your host on first run and writes its own setup notes |
-| 🦅 | **The Eagles**: self-updates | Takes a new release and keeps your setup and your own improvements |
-| ⚖️ | **The Rules**: limits it can't break | A read-only policy that only you can change |
+**There are no commands to learn.** Each row below is something you ask for in plain words, in any session where the-one-skill is installed. It works out which skills are involved, tells you the plan in a sentence or two, and waits for your yes.
+
+| You want to… | Just say something like… | What happens |
+| :--- | :--- | :--- |
+| 🔥 **Fix a skill** that got something wrong | *"Reflect on this session."*<br/>*"Make csv-inspector use tables."* | It traces your corrections to the rule that caused them and proposes a fix |
+| 🏰 **Tidy up** your skills | *"Review my skills."* | A short table of clashes, repeated rules, broken pieces, and idle skills, and what it would do about each |
+| ⚒️ **Make a new skill** | *"Make a skill for this, I do it every week."* | A new skill built from the best published work, with tested scripts for the parts that must be exact |
+| 🔌 **Use your connected tools** | *"Have my report skill use my task list."*<br/>(It also suggests this on its own.) | The skill reads from your calendar, tasks, or docs, and asks before changing anything there |
+| 🏹 **Get a ready-made skill** | *"Find me an official skill for Terraform."* | Candidates from Anthropic, OpenAI, or Google only, each read in full before anything is installed |
+| 🏛️ **Undo** a change | *"Undo that."*<br/>*"Back to vanilla."* | Exactly as much undone as you asked for, from one rule to everything |
+| 🦅 **Update** the-one-skill | *"Here's a new release. Update yourself."* | The new version goes in, and your setup and your own improvements stay |
+
+Two things you never have to ask for:
+- 🧭 **Setup on first use.** The first time you ask it anything, it studies your host and offers a one-time setup that keeps your originals safe.
+- ⚖️ **Rules it can't break.** A read-only policy that only you can change guarantees every promise in this README.
+
+Each one is explained below. The Middle-earth name in *italics* next to each heading is just for fun.
 
 ---
 
-### 🔥 The Hearth: reflect and improve
+### 🔥 Fix a skill that got something wrong · *the Hearth*
 
 At the end of a journey, ask it to look back. It finds the skill that did the work, traces each of your corrections to the rule that caused it, and proposes a fix in plain words.
 
@@ -86,7 +92,7 @@ At the end of a journey, ask it to look back. It finds the skill that did the wo
 - **Each rule goes where it belongs.** If the brand font is owned by `brand-style`, that's where the fix goes, not into the deck skill you happened to use.
 - **Diffs only if you ask.** "Show me the diff" shows the exact change at once.
 
-### 🏰 The Council: keep the roster in order
+### 🏰 Tidy up your skills · *the Council*
 
 > **You:** Review my skills.
 
@@ -101,7 +107,7 @@ You get a short table: each skill, what's wrong, and what it would do about it. 
 
 It can **create, merge, split, rename, retire, restore**, and **extract a shared policy** into its own skill. Multi-skill changes are recorded as one *change set*, so a whole merge comes undone in one step. It keeps a **roster map** (which skill owns each job and each shared policy) so later reviews check against your decisions and don't ask twice.
 
-### ⚒️ The Forge: create from verified work
+### ⚒️ Make a new skill · *the Forge*
 
 > **You:** Every Friday I write a status report from my notes: Done, Next, Blocked, at most 5 bullets each. Make a skill for it.
 
@@ -120,15 +126,17 @@ Then it drafts the whole skill from a proven template (inputs, steps, output wit
 
 It remembers which published skills it has already read, so it doesn't search from scratch every time. A skill installed or adapted from a publisher can later take **the publisher's newer release**, and your tweaks stay.
 
-### 🔥🔥 The Beacons: your connected tools
+### 🔌 Use your connected tools · *the Beacons*
 
-When it creates or improves a skill, it looks at what you've connected (calendar, tasks, mail, docs, issue trackers) and offers the tools that would feed the skill's work:
+> **You:** Have my report skill use my task list.
+
+You can ask, but usually you don't need to: when it creates or improves a skill, it looks at what you've connected (calendar, tasks, mail, docs, issue trackers) and offers the tools that would feed the skill's work:
 
 > **the-one-skill:** Your task board is connected. The report could also pull this week's completed tasks into Done, and your blocked tasks into Blocked. It would only read the board. Create it with the task board, or with notes only?
 
 Skills built this way still work when a connector is missing, because they fall back to asking you. They read freely but **ask before sending, creating, or changing anything**, and they never copy your account details into a skill.
 
-### 🏹 Aid from trusted realms: find and install
+### 🏹 Get a ready-made skill · *aid from trusted realms*
 
 > **You:** I keep correcting you on Terraform. Find me a verified skill for it.
 
@@ -136,7 +144,7 @@ It first names the corrections you keep making, then searches **only** skills th
 
 That source list is fixed in the read-only policy. Nothing can widen it, not even a request. Skills from anywhere else, you install yourself.
 
-### 🏛️ The Vault: undo anything
+### 🏛️ Undo a change · *the Vault*
 
 The first change to any skill saves its **original, untouched forever**, plus its last five versions. You undo exactly as much as you ask for:
 
@@ -150,9 +158,9 @@ The first change to any skill saves its **original, untouched forever**, plus it
 
 Nothing is ever deleted. "Delete" means *retire*, which can always be reversed. Edits you made by hand are never overwritten.
 
-### 🧭 Map-making: works on any host
+### 🧭 Setup on first use, on any host · *map-making*
 
-It carries no maps for particular hosts, only the craft of drawing them. On its first run it studies your host with read-only checks. It never takes the host's word for what it can do, and never experiments on your real skills. Then it picks the safest way that host allows to keep originals:
+**Nothing to ask for.** It carries no maps for particular hosts, only the craft of drawing them. On its first run it studies your host with read-only checks. It never takes the host's word for what it can do, and never experiments on your real skills. Then it picks the safest way that host allows to keep originals:
 
 | Host (typical) | How originals are kept |
 | :--- | :--- |
@@ -163,13 +171,13 @@ It carries no maps for particular hosts, only the craft of drawing them. On its 
 
 What it learns goes into `references/agentspace/`, the **Red Book** of your journeys: host maps, your preferences, the roster map, the verified skills it has read, and connector notes. Each new page is proposed to you first.
 
-### 🦅 The Eagles: updates that keep what's yours
+### 🦅 Update the-one-skill · *the Eagles*
 
 When a new release comes out, hand it over and say *"update yourself."* It merges three ways: the release's changes go in, your own improvements stay, and your Red Book isn't touched. Any change to the read-only policy is called out on its own line. See [Upgrading](#-the-eagles-are-coming-upgrading) below.
 
-### ⚖️ The Rules no skill can break
+### ⚖️ Rules it can't break · *the Rules*
 
-The skill can improve itself, using the same yes and undo as any other skill. What it may *never become* is fixed in `references/readonly-self-improvement.md`, a policy it cannot edit. Its eleven invariants include:
+**Nothing to ask for.** The skill can improve itself, using the same yes and undo as any other skill. What it may *never become* is fixed in `references/readonly-self-improvement.md`, a policy it cannot edit. Its eleven invariants include:
 
 - 📜 originals are kept
 - 🙋 nothing changes without your yes
