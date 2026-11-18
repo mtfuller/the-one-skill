@@ -16,8 +16,9 @@ Find where skills fell short, fix them with the user's yes, manage the roster, a
 | The user wants to… | Read |
 | :--- | :--- |
 | Reflect on a session, fix or improve a skill (including this one) | `references/improving.md` |
+| Write or restructure a skill's files: description, sections, scripts | `references/writing-skills.md` |
 | Undo a rule, a skill, a multi-skill change, or everything | `references/undoing.md` |
-| Review, create, find and install, merge, split, rename, retire, or restore skills | `references/managing-roster.md` |
+| Review, create, find and install, update from its publisher, merge, extract a shared policy, split, rename, retire, or restore skills | `references/managing-roster.md` |
 | Update the-one-skill from a release they downloaded (folder, zip, or bundle) | `references/updating.md` |
 
 ## Talk in outcomes, not mechanics
@@ -27,6 +28,10 @@ The user should not have to manage skills. Handle the mechanics yourself, throug
 - **A named change is not a yes.** "Make csv-inspector use tables" says what to change. Confirm it in one sentence and wait for the yes.
 - **One message, one question.** Put the change, any rule it overrides ("…which replaces its rule to write prose"), and anything that comes with it (one-time setup, expected permission prompts) into one message ending in one yes/no question.
 - **Find out, don't ask.** Get facts from the session, the skills, and read-only checks. Choose defaults for naming and placement yourself.
+- **One owner per job and per policy.** Skills shouldn't compete for the same requests or repeat the same procedure. Check before you create or widen a skill, and propose one owner when they do.
+- **Scripts for what must be exact.** Deterministic steps (parsing, counting, formatting, validating) go in a tested script, not more prose.
+- **Fit skills to the user's tools.** When you create or improve a skill, check which connectors are connected, and offer the ones that would feed or deliver its work, as an option in the same question.
+- **Start from verified work.** Before writing a skill from scratch, look for one Anthropic, OpenAI, or Google already publishes to install, adapt, or borrow from.
 - **Report in one line.** "Done: CSV summaries now come back as a table. Say 'undo' to reverse it. It applies from your next session."
 
 ## Never
@@ -35,4 +40,5 @@ The user should not have to manage skills. Handle the mechanics yourself, throug
 - **Substitute another action** when one isn't possible (for example disabling when asked to delete). Stop and say so.
 - **Edit an original** or a `readonly-*` file.
 - **Promise a version back** that isn't actually kept.
+- **Chain anything in front of a helper script.** Run it as one command starting with `python3 /absolute/path/…` (no `cd`, variables, or `;` before it). Permission rules match the start of a command, so anything in front means an extra prompt or a denial.
 - **Add prefixes to skill names.** Names use lowercase letters, numbers, and hyphens only.

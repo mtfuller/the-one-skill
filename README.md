@@ -15,13 +15,46 @@ It works on any host that loads skills: Claude Code, Gemini, or another agent th
 After a session it tells you, in a line or two, what went wrong and what it would change: *"CSV summaries kept coming back as prose. From now on they'll be a table, which replaces the skill's old prose rule. Apply?"* You say yes once. You never have to manage skills, files, or versions: it talks about how things will behave, never about the mechanics. If you want the exact diff, just ask, and it shows it right away.
 
 ### 🗺️ Manage your roster: *keeping the company in order*
+It keeps your skills **orthogonal**: every job and every policy has one owner. Two skills overlap if they answer the same requests, *or* if they carry the same procedure. Three deck skills that each repeat the same brand rules are one policy with three copies, and a fix lands in one but not the others. A built-in check compares every pair of skills on both counts and finds instruction blocks repeated across skills. It runs on every review, and before any skill is created, installed, or widened, so overlap is caught before it's added.
+
 It reviews every installed skill and flags:
-- triggers that overlap
+- skills that compete for the same requests, or repeat the same procedure
 - descriptions too vague to say when the skill should be used
+- the same skill name in two places (project, personal, plugin)
 - broken structure
 - workflows that recur but no skill covers
 
-It can **create, merge, split, rename, retire, and restore** skills. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
+It keeps a **roster map** in its notes: which skill owns each job and each shared policy, and which overlaps you chose to keep, so it doesn't ask twice.
+
+It can **create, merge, extract a shared policy, split, rename, retire, and restore** skills. A repeated policy becomes one skill the others defer to, or the skills merge when they were really one job. A skill is never deleted, only retired, and it can be called back whenever you want. Merging several skills brings their conflicts into the open (two fonts, two slide limits), and you settle each one. The merge is recorded as a single change set, so it can be undone in one step.
+
+### 🛠️ Create from verified work: *no forge starts cold*
+A new skill never starts from a blank page if someone has already done the work. Before writing one, it checks the skills already on your host and the ones Anthropic, OpenAI, or Google publish, reads the closest, and picks a start:
+- **install** a verified skill that fits as is
+- **adapt** one that fits most of the job: installed exactly as published, with your changes as a second version you can undo on their own
+- **borrow** structure, steps, and scripts from verified skills for a new one
+- **scratch** only when nothing close exists
+
+The draft is filled from your actual corrections in the session, names the neighbours it hands off to, and is checked for overlap before you see it.
+
+It remembers the verified skills it has already read, and what it decided about each, so it doesn't search from scratch every session. A skill installed or adapted from a publisher can later be **updated from the publisher's newer release**: their changes go in, and your tweaks stay.
+
+### ⚙️ Scripts for what must be exact: *what is forged does not waver*
+Instructions get followed slightly differently each run, and code runs the same way every time. When a correction was mechanical (a count, a date format, a parse, a file layout), or the same code got written twice, it moves that step into a small script. It tests the script on the file from your session before proposing it. The instructions keep the judgement, and the scripts do the mechanical work. Scripts are written only in languages your host can run. Hosts differ (one may allow JavaScript, another only Python and bash), so it checks and records which languages work on each host and flags scripts that won't run there. Every new skill starts from a template built that way: inputs, steps, output with an example, edge cases, and where each script and reference fits.
+
+### 🔌 Fits your connected tools: *allies already at hand*
+When it creates or improves a skill, it looks at the connectors you have connected, such as your calendar, tasks, mail, docs, or issue tracker. If one would feed the skill's work or take its output, it offers that as an option in the same question. For example: *"Create it as described, or also have it pull your completed tasks?"* Roster reviews add a few one-line ideas for connected tools none of your skills use yet. Skills it writes this way still work when a connector is missing. They read through connectors freely but ask before sending, creating, or changing anything, and they never copy your account details.
+
+### 🩺 Structure checks: *every road leads somewhere*
+Reviewing your skills also catches skills whose files don't fit together:
+- pointers to files that don't exist
+- references and scripts that nothing mentions, so they're never read or run
+- scripts with no line saying how to run them
+- template placeholders left in
+- descriptions over the host's limit
+- absolute paths into one machine
+
+It also tracks **when each skill was last used**: on Claude Code from your session history (it asks once first), elsewhere from its reflections. Skills idle for two months get listed so you can decide. It never retires one on its own.
 
 ### 🏹 Find and install a skill: *seeking aid from trusted realms*
 When you keep correcting the same mistakes, it first names the corrections. Then it looks for an existing skill, but only one that **Anthropic, OpenAI, or Google** publishes:

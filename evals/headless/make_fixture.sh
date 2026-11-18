@@ -11,7 +11,11 @@
 #   rule     adapter, then a second change adding a heavy rule to the adapter
 #   guard    adapter + the guard hook in .claude/settings.local.json
 #   vendor   adapter + a downloaded skill in vendor-skills/terraform-guard (with a script that phones home)
-#   release  adapter + a local improvement to the-one-skill + a newer release as downloads/*.bundle.md
+#   release  adapter + a local improvement to the-one-skill + a newer release (99.0.0) as downloads/*.bundle.md
+#   decks    adapter + three deck/memo skills with different triggers that repeat the same brand rules
+#   owner    adapter + brand-style owning the brand rules, two deck skills deferring to it, and a roster map
+#   messy    adapter + a skill with a missing reference, an unmentioned script, and a JavaScript script
+#   connector adapter + a fake task-list connector ("taskboard", fake_tasks_mcp.py) wired in via .eval-mcp.json
 set -euo pipefail
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 D=$1
@@ -79,9 +83,11 @@ Strategy: A: originals kept in .tos-store/ (project root, git-ignored) via scrip
 
 ## Operations
 SKILLCTL = python3 <project>/.claude/skills/the-one-skill/scripts/skillctl.py --root <project>/.claude/skills (absolute paths, nothing chained in front; store defaults to <project>/.tos-store)
-- List: SKILLCTL list --json · Improve: draft → diff → yes → apply
+- List: SKILLCTL list --json --languages python,bash · Overlap: SKILLCTL overlap [--candidate <skill>] · Improve: draft → diff → yes → apply
 - Revert / step back: use <skill> original|previous|tuned (history <skill> lists kept versions)
-- Create / install: SKILLCTL new <name> [--from <folder>] · Retire/restore: SKILLCTL retire|restore <skill>
+- Create / install: SKILLCTL new <name> [--from <folder> [--published]] · Retire/restore: SKILLCTL retire|restore <skill>
+- Script languages: python, bash (verified)
+- Usage: not available (fixture; transcripts not read)
 - Find and install: host skill/plugin directory tools when available
 
 ## Protected (never modify)
@@ -162,17 +168,18 @@ release)
   $C apply the-one-skill > /dev/null
   R="$D/.release-src"; mkdir -p "$R"
   git -C "$REPO" archive HEAD | tar -x -C "$R"
-  echo "1.1.0" > "$R/VERSION.md"
+  echo "99.0.0" > "$R/VERSION.md"  # synthetic: always newer than HEAD
   python3 - "$R" <<'P'
 import sys, pathlib
 r = pathlib.Path(sys.argv[1])
-c = r / "CHANGELOG.md"; c.write_text(c.read_text().replace("## 1.0.0", "## 1.1.0\n- Roster reviews also flag skills nobody has used in 90 days.\n- New note on naming skills.\n\n## 1.0.0", 1))
-m = r / "references/managing-roster.md"; m.write_text(m.read_text().replace("   - **Dead weight:** skills the user says they no longer use.", "   - **Dead weight:** skills the user says they no longer use, or that haven't been used in 90 days."))
+c = r / "CHANGELOG.md"; s = c.read_text(); i = s.index("\n## ")
+c.write_text(s[:i] + "\n## 99.0.0\n- Roster reviews name a skill's owner in every table row.\n- New note on naming skills.\n" + s[i:])
+m = r / "references/managing-roster.md"; m.write_text(m.read_text().rstrip("\n") + "\n- **Owner column (release marker).** Every roster table row names the skill's owner.\n")
 (r / "references/naming.md").write_text("# Naming skills\nPrefer verb-noun names, such as summarize-csv.\n")
 p = r / "references/readonly-self-improvement.md"; p.write_text(p.read_text().rstrip("\n") + "\n\n## 5. Release note\n- Releases are taken only from files the user provides.\n")
 P
   mkdir -p "$D/downloads"
-  python3 "$R/scripts/bundle.py" pack "$R" -o "$D/downloads/the-one-skill-1.1.0.bundle.md"
+  python3 "$R/scripts/bundle.py" pack "$R" -o "$D/downloads/the-one-skill-99.0.0.bundle.md"
   rm -rf "$R"
   ;;
 vendor)
@@ -194,6 +201,110 @@ X
   ;;
 guard)
   $C guard 2>/dev/null > "$D/.claude/settings.local.json"
+  ;;
+decks|owner)
+  skill() { mkdir -p "$K/$1"; cat > "$K/$1/SKILL.md"; }
+  if [ "$PROFILE" = decks ]; then
+    BRAND='## Brand rules
+- Use the Arial font for every heading and body text in the document.
+- Put the company logo in the top right corner of the first page only.
+- Keep the primary colour navy blue and never use more than two accent colours.
+- End with a contact slide that lists the account owner and their email address.'
+  else
+    BRAND='Follow brand-style for fonts, colours, logo, and the contact slide.'
+    skill brand-style <<'X'
+---
+name: brand-style
+description: Company brand rules for fonts, colours, logo, and contact slide. Use when producing any branded deck, memo, or slide.
+---
+# brand-style
+- Use the Arial font for every heading and body text in the document.
+- Put the company logo in the top right corner of the first page only.
+- Keep the primary colour navy blue and never use more than two accent colours.
+- End with a contact slide that lists the account owner and their email address.
+X
+  fi
+  skill proposal-deck <<X
+---
+name: proposal-deck
+description: Build sales proposal decks as PPTX. Use when the user asks for a proposal or pitch deck.
+---
+# proposal-deck
+1. Gather the client name, the problem statement, and the proposed pricing tiers from the user.
+2. Write one slide per pricing tier with a comparison table and a recommendation.
+
+$BRAND
+X
+  skill board-update <<X
+---
+name: board-update
+description: Draft quarterly board update decks. Use when the user prepares a board meeting.
+---
+# board-update
+1. Collect revenue, burn, runway and hiring numbers for the quarter from the finance sheet.
+2. Lead with the three decisions the board must take, then the metrics, then the risks.
+
+$BRAND
+X
+  if [ "$PROFILE" = decks ]; then
+    skill timeline-slides <<X
+---
+name: timeline-slides
+description: Turn project milestones into a timeline slide. Use when the user wants a roadmap or timeline visual.
+---
+# timeline-slides
+1. Read milestones with dates and owners, then sort them chronologically before drawing anything.
+2. Draw a horizontal arrow with milestone markers spaced in proportion to the dates involved.
+
+$BRAND
+X
+  else
+    DR=$(draft the-one-skill)
+    cat > "$DR/references/agentspace/roster.md" <<'X'
+# Roster map
+Purpose: which skill owns each job and each shared policy, and which overlaps are deliberate.
+Updated: 2026-11-10
+
+## Skills
+| Skill | Owns (job) | Hands off to | Last used |
+| :--- | :--- | :--- | :--- |
+| brand-style | Brand fonts, colours, logo, contact slide | | 2026-11-09 |
+| proposal-deck | Sales proposal decks | brand-style (styling) | 2026-11-09 |
+| board-update | Quarterly board decks | brand-style (styling) | 2026-11-02 |
+
+## Shared policies
+| Policy | Owner | Used by |
+| :--- | :--- | :--- |
+| Brand fonts, colours, logo, contact slide | brand-style | proposal-deck, board-update |
+X
+    python3 - "$DR/references/agentspace/index.md" <<'P'
+import sys; p = sys.argv[1]; s = open(p).read()
+a = "| File | Purpose | Read when |\n| :--- | :--- | :--- |"
+assert a in s, "index layout changed"
+s = s.replace(a, a + "\n| `roster.md` | Which skill owns each job and shared policy | Before any roster change or review |", 1)
+open(p, "w").write(s)
+P
+    $C apply the-one-skill > /dev/null
+  fi
+  ;;
+connector)
+  printf '{"mcpServers": {"taskboard": {"command": "python3", "args": ["%s"]}}}\n' \
+    "$REPO/evals/headless/fake_tasks_mcp.py" > "$D/.eval-mcp.json"
+  ;;
+messy)
+  mkdir -p "$K/report-builder/scripts"
+  cat > "$K/report-builder/SKILL.md" <<'X'
+---
+name: report-builder
+description: Build the monthly KPI report from data/kpis.csv. Use when the user asks for the monthly report.
+---
+# report-builder
+1. Read the metric definitions in references/metrics.md.
+2. Run `node scripts/chart.js data/kpis.csv` to draw the trend chart.
+3. Write the summary under the chart.
+X
+  echo "console.log('chart');" > "$K/report-builder/scripts/chart.js"
+  printf 'import csv\nimport sys\nprint(sum(1 for _ in csv.reader(open(sys.argv[1]))) - 1)\n' > "$K/report-builder/scripts/count.py"
   ;;
 *) echo "unknown profile: $PROFILE" >&2; exit 1 ;;
 esac
