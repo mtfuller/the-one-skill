@@ -6,6 +6,7 @@ Use this to reflect on a session and to fix or improve a skill, including the-on
 2. **Evaluate.** Review what was generated (content, structure, tone, accuracy). Look at what the user corrected: format (table vs. prose), wrong assumptions, wrong targets or properties the skill should have handled. Note friction and gaps. Focus on the skills that did the work. Mention the-one-skill only if it caused the friction, in one line.
 3. **Choose concrete improvements**, specific enough to act on ("dates as YYYY-MM-DD", not "clearer format"). How to make each one is up to you:
    - Edit the skill's instructions, or add a reference file it points to.
+   - **Use a connected tool** when the friction was missing or stale input that a connected connector already holds: the user pasted notes, looked something up by hand, or corrected a fact. Offer it as an option, with a fallback for when it's missing (`references/writing-skills.md`, "Connectors").
    - **Move a deterministic step into a script** when the correction was mechanical (a count, a format, a parse) or the same code got written again. Prose would only be followed most of the time (`references/writing-skills.md`). Test it on the session's real input before proposing.
    - Create a new skill if the workflow is a separate job, starting from the best verified work (`references/managing-roster.md`, "Create a skill").
    - Install a skill published by Anthropic, OpenAI, or Google if the job is generic enough that one probably exists (`references/managing-roster.md`).

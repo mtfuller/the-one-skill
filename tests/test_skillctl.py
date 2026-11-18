@@ -762,6 +762,14 @@ class StructureTest(unittest.TestCase):
         (self.root / "claude-helper" / "scripts" / "go").write_text("#!/usr/bin/env python3\nprint(1)\n")
         self.assertEqual(skillctl.shebang_suffix(self.root / "claude-helper" / "scripts" / "go"), ".py")
 
+    def test_a_document_is_reached_by_path_not_by_a_shared_file_name(self) -> None:
+        self.make("docs", "See references/guide.md. The README.md explains the rest.\n", {
+            "references/guide.md": "Steps.\n",
+            "references/old/README.md": "Old notes: see references/gone.md and scripts/gone.py.\n"})
+        got = "\n".join(self.issues("docs"))
+        self.assertNotIn("gone", got)  # the nested README is not reached by its file name alone
+        self.assertIn("`references/old/README.md` is never mentioned", got)
+
     def test_wildcards_and_agentspace_are_not_broken_links(self) -> None:
         self.make("calm", "Never edit `references/readonly-*.md`. Notes go in references/agentspace/notes.md.\n")
         self.assertEqual(self.issues("calm"), [])

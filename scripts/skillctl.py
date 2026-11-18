@@ -241,7 +241,7 @@ def structure_issues(folder: Path) -> list[str]:
              if p.suffix.lower() in (".md", ".txt")}
     if any(m in skill_md for m in TEMPLATE_MARKERS):
         issues.append("template placeholders left in SKILL.md")
-    # Files reached from SKILL.md: by path in text, by file name, or by `import` from a reached script.
+    # Files reached from SKILL.md: by path in text; scripts also by file name or `import` from a reached file.
     path_re = re.compile(r"(?<![\w/.-])((?:references|scripts|assets|templates|examples)/[\w./-]*\w)(?![\w*<{-])")
     code = {rel: p.read_text(encoding="utf-8", errors="replace") for rel, p in files.items()
             if p.suffix.lower() in CODE_SUFFIXES}
@@ -261,7 +261,7 @@ def structure_issues(folder: Path) -> list[str]:
                 continue
             name, stem = Path(rel).name, Path(rel).stem
             if rel in new or any(rel.startswith(d + "/") for d in new if (folder / d).is_dir()) \
-                    or re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", t) \
+                    or (rel in code and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", t)) \
                     or (rel in code and re.search(rf"^\s*(?:from|import)\s+{re.escape(stem)}\b", t, re.M)):
                 reached.add(rel)
                 queue.append(rel)

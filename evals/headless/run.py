@@ -23,6 +23,11 @@ def main() -> int:
            "--permission-mode", "acceptEdits", "--allowedTools", ALLOWED]
     if "--continue" in sys.argv[4:]:
         cmd.append("--continue")
+    mcp = pathlib.Path(d) / ".eval-mcp.json"  # a fixture's fake connectors (see make_fixture.sh)
+    if mcp.is_file():
+        servers = json.loads(mcp.read_text())["mcpServers"]
+        cmd[cmd.index("--allowedTools") + 1] += "," + ",".join(f"mcp__{s}" for s in servers)
+        cmd += ["--mcp-config", str(mcp)]
     r = subprocess.run(cmd, cwd=d, capture_output=True, text=True, timeout=900)
     out_dir = pathlib.Path(d).resolve().parent
     (out_dir / f"{name}.jsonl").write_text(r.stdout)

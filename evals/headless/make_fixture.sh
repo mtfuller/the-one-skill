@@ -15,6 +15,7 @@
 #   decks    adapter + three deck/memo skills with different triggers that repeat the same brand rules
 #   owner    adapter + brand-style owning the brand rules, two deck skills deferring to it, and a roster map
 #   messy    adapter + a skill with a missing reference, an unmentioned script, and a JavaScript script
+#   connector adapter + a fake task-list connector ("taskboard", fake_tasks_mcp.py) wired in via .eval-mcp.json
 set -euo pipefail
 REPO=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 D=$1
@@ -285,6 +286,10 @@ open(p, "w").write(s)
 P
     $C apply the-one-skill > /dev/null
   fi
+  ;;
+connector)
+  printf '{"mcpServers": {"taskboard": {"command": "python3", "args": ["%s"]}}}\n' \
+    "$REPO/evals/headless/fake_tasks_mcp.py" > "$D/.eval-mcp.json"
   ;;
 messy)
   mkdir -p "$K/report-builder/scripts"

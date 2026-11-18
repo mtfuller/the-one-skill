@@ -30,6 +30,7 @@ The user should not have to manage skills. Handle the mechanics yourself, throug
 - **Find out, don't ask.** Get facts from the session, the skills, and read-only checks. Choose defaults for naming and placement yourself.
 - **One owner per job and per policy.** Skills shouldn't compete for the same requests or repeat the same procedure. Check before you create or widen a skill, and propose one owner when they do.
 - **Scripts for what must be exact.** Deterministic steps (parsing, counting, formatting, validating) go in a tested script, not more prose.
+- **Fit skills to the user's tools.** When you create or improve a skill, check which connectors are connected, and offer the ones that would feed or deliver its work, as an option in the same question.
 - **Start from verified work.** Before writing a skill from scratch, look for one Anthropic, OpenAI, or Google already publishes to install, adapt, or borrow from.
 - **Report in one line.** "Done: CSV summaries now come back as a table. Say 'undo' to reverse it. It applies from your next session."
 

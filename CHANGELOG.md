@@ -10,6 +10,7 @@ Plain-language notes for each release. the-one-skill reads these when you ask it
 - Compares against your personal, plugin, and built-in skill folders too (read-only), and reports the same skill name in two places.
 - Flags scripts copied across skills as the same procedure.
 - Moves deterministic steps (counting, parsing, formatting, validating) into small scripts, and tests them on your real input before proposing. A new guide covers how to write a skill's description, sections, and scripts. New skills start from a template with inputs, steps, output, edge cases, and where scripts and references fit.
+- When creating or improving a skill, it checks your connected connectors and offers to have the skill use the ones that fit, with a fallback when a connector is missing. Roster reviews suggest a few workflows for connected tools none of your skills use yet.
 - Writes scripts only in languages the host can run, recorded per host in its setup notes, and flags scripts in a language the host can't run.
 - The roster review also checks how each skill's files fit together: missing files, files nothing mentions, scripts with no run line, leftover template text, overlong descriptions, and machine-specific paths.
 - Remembers the publisher skills it has already read, and what it decided, so later sessions don't search from scratch.

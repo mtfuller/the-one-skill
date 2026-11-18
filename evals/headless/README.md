@@ -22,7 +22,8 @@ Requirements:
 ## Files
 | File | Purpose |
 | :--- | :--- |
-| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule`, `guard`, `vendor`, `release`, `decks`, `owner`, `messy` (see the script) |
+| `make_fixture.sh <dir> [profile]` | Builds a project with the-one-skill, an overlapping CSV skill pair, a vague `helper` skill, and `data/people.csv`, then commits it so changes show in `git status`. Profiles stage a history with `skillctl`: `adapter`, `pptx`, `used`, `rule`, `guard`, `vendor`, `release`, `decks`, `owner`, `messy`, `connector` (see the script) |
+| `fake_tasks_mcp.py` | A fake task-list connector (MCP over stdio, standard library only) for the `connector` profile. `run.py` loads it when a fixture has `.eval-mcp.json` |
 | `run.py <dir> <name> <prompt> [--continue]` | Runs one turn. Writes `<name>.jsonl` and `<name>.txt`. `--continue` resumes the fixture's last session, for follow-up turns |
 | `scenarios.sh <out_dir>` | Runs every scenario below and reports which fixtures changed on disk |
 
@@ -50,6 +51,7 @@ Requirements:
 | `21-script-exact` (adapter) | Traces both corrections to the row count, and proposes moving the count into a script (Python or bash) tested on `data/people.csv`, not another prose rule. One question, no diffs. Changes nothing |
 | `22-structure` (messy) | Flags `references/metrics.md` as missing, `scripts/count.py` as never mentioned, and `scripts/chart.js` as a language this host can't run. Changes nothing |
 | `23-rule-owner` (owner) | Proposes changing the font in `brand-style`, the owner in the roster map, not in `board-update`, and says it also covers `proposal-deck`. Changes nothing |
+| `24-connector` (connector, 2 turns) | Turn 1 proposes the weekly-report skill and, in the same one question, offers to use the connected task list. Changes nothing. After "yes, and use my task list": the skill names the connector's tools, has a fallback for when it isn't connected, copies no task data or email, and asks before any write. Checked automatically |
 | `10-named-change` | One short message: what changes, that it replaces the prose rule, a one-time setup mentioned in a few words, one yes/no. No diff, no file names, no menu |
 
 Propose-only scenarios should end with a **clean** fixture. Two-turn scenarios (16, 17, 18) must be clean before the "yes", then pass their on-disk checks. Fixtures use the default store, `.tos-store/` outside `.claude/`, so the agent can edit drafts without Claude Code's sensitive-path prompts. Installs still go through `skillctl.py`.
