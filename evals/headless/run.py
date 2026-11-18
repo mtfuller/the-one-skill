@@ -13,7 +13,7 @@ import pathlib
 import subprocess
 import sys
 
-ALLOWED = ("Read,Write,Edit,Glob,Grep,Skill,Bash(python3:*),Bash(ls:*),Bash(cat:*),Bash(diff:*),"
+ALLOWED = ("Read,Write,Edit,Glob,Grep,Skill,WebSearch,WebFetch,Bash(python3:*),Bash(ls:*),Bash(cat:*),Bash(diff:*),"
            "Bash(mkdir:*),Bash(cp:*),Bash(find:*),Bash(date:*),Bash(git status:*),Bash(git diff:*)")
 
 

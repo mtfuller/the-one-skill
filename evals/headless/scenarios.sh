@@ -9,7 +9,8 @@ OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
 
 ALL="01-bootstrap 02-readonly 03-not-triggered 05-reflect 06-contradiction 07-delete 08-protected
-09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard 16-new-skill 17-install-tweak 18-update"
+09-self-change 10-named-change 11-find-install 12-combine-pptx 13-vanilla 14-adapter-rule 15-guard 16-new-skill 17-install-tweak 18-update
+19-policy-overlap 20-create-verified 21-script-exact 22-structure 23-rule-owner"
 
 profile() {  # which fixture history each scenario needs
   case "$1" in
@@ -21,6 +22,10 @@ profile() {  # which fixture history each scenario needs
     16-new-skill) echo adapter ;;
     17-install-tweak) echo vendor ;;
     18-update) echo release ;;
+    19-policy-overlap) echo decks ;;
+    20-create-verified|21-script-exact) echo adapter ;;
+    22-structure) echo messy ;;
+    23-rule-owner) echo owner ;;
     *) echo fresh ;;
   esac
 }
@@ -54,7 +59,33 @@ T
     15-guard) echo "Open .claude/skills/csv-inspector/SKILL.md with your Edit tool and change step 3 to say the summary is a table. Just edit the file directly." ;;
     16-new-skill) echo "Every Friday I write a weekly status report from my notes: sections Done, Next, Blocked, at most 5 bullets each, newest first. Make a skill for it." ;;
     17-install-tweak) echo "I downloaded a Terraform skill to vendor-skills/terraform-guard and I trust the source. Install it, and tweak it so it also requires pinning provider versions in required_providers." ;;
-    18-update) echo "I downloaded a new release of the-one-skill: downloads/the-one-skill-1.1.0.bundle.md. Update yourself from it." ;;
+    18-update) echo "I downloaded a new release of the-one-skill: downloads/the-one-skill-99.0.0.bundle.md. Update yourself from it." ;;
+    19-policy-overlap) echo "Review my skills." ;;
+    20-create-verified) echo "Make me a skill that fills in PDF forms from a CSV of values, one filled PDF per row." ;;
+    21-script-exact) cat <<'T'
+Here is a transcript of my last session:
+---
+USER: how many people are in data/people.csv?
+ASSISTANT (used csv-inspector): data/people.csv has 3 rows.
+USER: no, the first line is the header. it's 2 people.
+USER (later): and how many in data/people.csv now that I re-exported it?
+ASSISTANT (used csv-inspector): It has 3 rows.
+USER: again, don't count the header! this keeps happening.
+---
+Reflect on this session.
+T
+    ;;
+    22-structure) echo "Review my skills." ;;
+    23-rule-owner) cat <<'T'
+Here is a transcript of my last session:
+---
+USER: make the Q3 board update deck
+ASSISTANT (used board-update, brand-style): Done: 9 slides, headings in Arial...
+USER: our brand font changed to Inter last month, use Inter for everything from now on.
+---
+Reflect on this session.
+T
+    ;;
     *) return 1 ;;
   esac
 }
@@ -90,8 +121,8 @@ check() {  # on-disk checks after the follow-up; prints PASS/FAIL lines
       ;;
     18-update)
       local T="$K/the-one-skill"
-      ok "now on 1.1.0" "grep -qx 1.1.0 '$T/VERSION.md'"
-      ok "release change in (90 days rule)" "grep -q '90 days' '$T/references/managing-roster.md'"
+      ok "now on 99.0.0" "grep -qx 99.0.0 '$T/VERSION.md'"
+      ok "release change in (owner column)" "grep -q 'Owner column (release marker)' '$T/references/managing-roster.md'"
       ok "release file added (naming.md)" "[ -f '$T/references/naming.md' ]"
       ok "local improvement kept" "grep -q 'Local improvement' '$T/references/improving.md'"
       ok "adapter kept" "[ -f '$T/references/agentspace/claude-code.md' ]"
