@@ -751,6 +751,17 @@ class StructureTest(unittest.TestCase):
             self.ctl.roster(["cobol"])
         self.assertEqual(skillctl.main(["--root", str(self.root), "list", "--languages", "python,bash"]), 0)
 
+    def test_claude_rules_and_extensionless_scripts(self) -> None:
+        self.make("claude-helper", "Run `scripts/go` on the file.\n", {"scripts/go": "#!/usr/bin/env node\nconsole.log(1)\n"},
+                  desc="Helps. Use when <thing> happens.")
+        got = "\n".join(next(r for r in self.ctl.roster(["python", "bash"]) if r["name"] == "claude-helper")["issues"])
+        self.assertIn("angle-bracket tags", got)
+        self.assertIn("reserved word", got)
+        self.assertIn("`scripts/go` is in a language this host can't run", got)
+        self.assertEqual(skillctl.shebang_suffix(self.root / "claude-helper" / "scripts" / "go"), ".js")
+        (self.root / "claude-helper" / "scripts" / "go").write_text("#!/usr/bin/env python3\nprint(1)\n")
+        self.assertEqual(skillctl.shebang_suffix(self.root / "claude-helper" / "scripts" / "go"), ".py")
+
     def test_wildcards_and_agentspace_are_not_broken_links(self) -> None:
         self.make("calm", "Never edit `references/readonly-*.md`. Notes go in references/agentspace/notes.md.\n")
         self.assertEqual(self.issues("calm"), [])
@@ -825,6 +836,8 @@ class UsageTest(unittest.TestCase):
                 {"timestamp": "2026-11-02T10:00:00Z", "message": {"content": [
                     {"type": "tool_use", "name": "Skill", "input": {"skill": "anthropic-skills:pdf"}}]}},
                 {"timestamp": "2026-11-03T10:00:00Z", "message": {"content": [
+                    {"type": "tool_use", "name": "Skill", "input": {"skill": "csv-inspector"}}]}},
+                {"timestamp": "2026-11-05T10:00:00Z", "message": {"content": [  # a review reading it: not a use
                     {"type": "tool_use", "name": "Read", "input": {"file_path": "/x/.claude/skills/csv-inspector/SKILL.md"}}]}},
                 {"timestamp": "2026-11-04T10:00:00Z", "message": {"content": "<command-name>/git-release</command-name>"}},
                 "not json at all",

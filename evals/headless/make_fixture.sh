@@ -79,9 +79,11 @@ Strategy: A: originals kept in .tos-store/ (project root, git-ignored) via scrip
 
 ## Operations
 SKILLCTL = python3 <project>/.claude/skills/the-one-skill/scripts/skillctl.py --root <project>/.claude/skills (absolute paths, nothing chained in front; store defaults to <project>/.tos-store)
-- List: SKILLCTL list --json · Improve: draft → diff → yes → apply
+- List: SKILLCTL list --json --languages python,bash · Overlap: SKILLCTL overlap [--candidate <skill>] · Improve: draft → diff → yes → apply
 - Revert / step back: use <skill> original|previous|tuned (history <skill> lists kept versions)
-- Create / install: SKILLCTL new <name> [--from <folder>] · Retire/restore: SKILLCTL retire|restore <skill>
+- Create / install: SKILLCTL new <name> [--from <folder> [--published]] · Retire/restore: SKILLCTL retire|restore <skill>
+- Script languages: python, bash (verified)
+- Usage: not available (fixture; transcripts not read)
 - Find and install: host skill/plugin directory tools when available
 
 ## Protected (never modify)

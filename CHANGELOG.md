@@ -14,6 +14,8 @@ Plain-language notes for each release. the-one-skill reads these when you ask it
 - The roster review also checks how each skill's files fit together: missing files, files nothing mentions, scripts with no run line, leftover template text, overlong descriptions, and machine-specific paths.
 - Remembers the publisher skills it has already read, and what it decided, so later sessions don't search from scratch.
 - Skills installed or adapted from a publisher can take the publisher's newer release while keeping your tweaks.
+- The roster review also flags what Claude rejects: angle-bracket tags in a description, and "anthropic" or "claude" in a name.
+- After updating to this release, it offers to refresh your setup notes, to record which script languages your host runs, which other skill folders it can compare against, and whether it may read your session history.
 - Tracks when each skill was last used (on Claude Code from your session history, after asking once) and lists skills idle for 60 days so you can decide.
 
 ## 1.0.2

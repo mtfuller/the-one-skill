@@ -132,6 +132,23 @@ LANGUAGES = {  # name -> script file suffixes, for `list --languages`
 }
 
 
+def shebang_suffix(f: Path) -> str:
+    """The suffix a script with no extension would have, from its #! line ("" if none)."""
+    try:
+        with f.open("rb") as fh:
+            first = fh.readline(200).decode("utf-8", "replace")
+    except OSError:
+        return ""
+    if not first.startswith("#!"):
+        return ""
+    words = first[2:].replace("/", " ").split()
+    for w in reversed(words):
+        w = re.sub(r"[\d.]+$", "", w)  # python3 -> python
+        if w in LANGUAGES:
+            return LANGUAGES[w][0]
+    return ""
+
+
 def language_suffixes(languages: Sequence[str]) -> set[str]:
     """File suffixes for language names such as "python,bash"; refuses names it doesn't know."""
     out: set[str] = set()
@@ -947,13 +964,13 @@ class SkillCtl:
     def usage(transcripts: str | Path) -> dict[str, dict[str, Any]]:
         """How often, and when last, each skill was used in Claude Code session transcripts (*.jsonl).
 
-        Counts Skill tool calls, /slash invocations, and reads of a skill's SKILL.md. Reads only
-        skill names and timestamps; nothing else from the transcripts is kept or printed."""
+        Counts Skill tool calls and /slash invocations. Reads of a SKILL.md don't count: a roster
+        review reads every skill, which would make them all look used. Reads only skill names and
+        timestamps; nothing else from the transcripts is kept or printed."""
         root = Path(transcripts).expanduser()
         if not root.is_dir():
             raise Refused(f"{root} is not a folder of transcripts.")
         seen: dict[str, dict[str, Any]] = {}
-        skill_md = re.compile(r"/skills/([a-z0-9-]{1,64})/SKILL\.md$")
         slash = re.compile(r"<command-name>/?([a-z0-9:-]{1,128})</command-name>")
 
         def hit(name: str, when: str | None) -> None:
@@ -971,10 +988,6 @@ class SkillCtl:
                     inp = obj["input"]
                     if obj.get("name") == "Skill" and isinstance(inp.get("skill") or inp.get("command"), str):
                         hit(inp.get("skill") or inp.get("command"), when)
-                    elif obj.get("name") == "Read" and isinstance(inp.get("file_path"), str):
-                        m = skill_md.search(inp["file_path"])
-                        if m:
-                            hit(m.group(1), when)
                 for v in obj.values():
                     walk(v, when)
             elif isinstance(obj, list):
@@ -1023,6 +1036,10 @@ class SkillCtl:
                 issues.append("no description")
             elif desc and not re.search(r"\buse (it )?(when|for)\b", desc, re.IGNORECASE):
                 issues.append("description says nothing about when to use it")
+            if re.search(r"<[A-Za-z/][^<>]*>", desc):
+                issues.append("description has angle-bracket tags, which Claude rejects")
+            if re.search(r"anthropic|claude", p.name):
+                issues.append("name contains a reserved word (anthropic, claude), which Claude rejects")
             if len(desc) > MAX_DESCRIPTION:
                 issues.append(f"description has {len(desc)} characters (> {MAX_DESCRIPTION})")
             if (p / "SKILL.md").is_file():
@@ -1031,8 +1048,8 @@ class SkillCtl:
                     issues.append(f"SKILL.md has {n} lines (> {MAX_SKILL_LINES})")
                 issues.extend(structure_issues(p))
             if allowed is not None:
-                for rel in sorted(files_of(p)):
-                    suffix = Path(rel).suffix.lower()
+                for rel, f in sorted(files_of(p).items()):
+                    suffix = Path(rel).suffix.lower() or shebang_suffix(f)
                     if suffix in CODE_SUFFIXES and suffix not in allowed:
                         issues.append(f"`{rel}` is in a language this host can't run (it runs: {', '.join(languages)})")
             st = self.state(p.name)
@@ -1172,8 +1189,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if a.json:
                 print(json.dumps({n: {**r, "installed": n in installed} for n, r in rows.items()}, indent=2))
             for n, r in rows.items() if not a.json else []:
-                where = "" if n in installed else "  (not in this skills folder)"
-                print(f"{n:32} {r['uses']:5} use(s)  last {r['last'] or 'never'}{where}")
+                if n in installed:  # the rest are other folders' skills or built-in commands
+                    print(f"{n:32} {r['uses']:5} use(s)  last {r['last'] or 'never'}")
         elif a.cmd == "history":
             for r in ctl.history(a.skill):
                 mark = "*" if r["installed"] else " "

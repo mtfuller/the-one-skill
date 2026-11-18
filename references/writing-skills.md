@@ -11,7 +11,7 @@ How to write the files of a skill you create or improve, so it works the first t
 ## Description
 The description is the only part the host reads before deciding to load the skill.
 - Say what it does, then "Use when …" with the words a user would actually say ("a CSV", "a pitch deck"), then "Do not use when … (use `<neighbour>`)" for each skill it could be confused with.
-- Keep it under 1,024 characters (Claude's limit; `list` flags longer ones), and write it in the third person ("Builds…", not "I build…").
+- Keep it under 1,024 characters, with no angle-bracket tags (Claude's rules; `list` flags both), and write it in the third person ("Builds…", not "I build…"). Names can't contain "anthropic" or "claude".
 
 ## Body sections
 | Section | What goes in it |
